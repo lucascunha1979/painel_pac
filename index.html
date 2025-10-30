@@ -8,307 +8,191 @@
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
-  :root{
-    --bg:#0a0a0a; --panel:#1a1a1a; --red:#ef4444; --muted:#cccccc;
-  }
-  *{box-sizing:border-box}
-  body{background:var(--bg);color:#fff;font-family:Arial,Helvetica,sans-serif; margin:0;padding:18px}
-  h1{margin:0 0 6px 0;font-size:26px}
-  h2{color:var(--red);margin:0 0 10px 0;font-size:20px}
-  .meta{color:var(--muted);margin-bottom:14px}
-  .wrap{max-width:1400px;margin:auto}
-  .card{background:var(--panel);border:1px solid #222;border-radius:12px;padding:16px;margin:0 0 18px 0}
-  .filters select{padding:8px 10px;background:#000;border:1px solid #555;color:#fff;border-radius:8px;margin-right:10px}
-  .chart{height:420px}
-  #valorTotal{background:var(--red);border-radius:12px;padding:14px;text-align:center;font-size:30px;font-weight:bold;margin-bottom:18px}
-  .hier-box{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin:8px 0}
-  .hitem{background:#f5f5d8;color:#000;border:1px solid #aaa;border-radius:10px;min-width:170px;padding:10px 14px;font-weight:bold;text-align:center}
-  .hitem.blue{background:#b7d8eb}
-  .arrow{width:100%;text-align:center;color:#fff;margin:2px 0 6px 0}
-  .row{display:flex;gap:18px;flex-wrap:wrap}
-  .col{flex:1 1 480px}
-  .scroll-x{overflow-x:auto}
-  .chart.wide{width:1400px}
-  .chart.wider{width:2000px}
-  #btnPDF{position:fixed;right:18px;bottom:18px;background:var(--red);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+:root{--bg:#0a0a0a;--panel:#1a1a1a;--red:#ef4444;--muted:#ccc;}
+body{margin:0;padding:18px;background:var(--bg);color:#fff;font-family:Arial;}
+h1{font-size:26px;margin-bottom:6px;}
+h2{color:var(--red);margin-bottom:10px;}
+.card{background:var(--panel);padding:16px;border-radius:12px;margin-bottom:18px;border:1px solid #222;}
+select{padding:8px;background:#000;color:#fff;border:1px solid #555;border-radius:8px;margin-right:10px;}
+.chart{height:420px;}
+#valorTotal{background:var(--red);padding:14px;border-radius:10px;font-size:30px;font-weight:bold;text-align:center;margin-bottom:20px;}
+.hier-box{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;}
+.hitem{background:#f5f5d8;color:#000;padding:10px;border-radius:10px;border:1px solid #aaa;font-weight:bold;text-align:center;min-width:160px;}
+.hitem.blue{background:#b7d8eb;}
+.arrow{text-align:center;margin:4px 0;}
+.scroll-x{overflow-x:auto;}
+.chart.wide{width:1400px;}
+.chart.wider{width:2000px;}
+#btnPDF{position:fixed;bottom:20px;right:20px;background:var(--red);color:#fff;border:0;padding:12px 18px;border-radius:8px;font-weight:bold;cursor:pointer;}
 </style>
 </head>
+
 <body>
-<div class="wrap">
+<h1>Painel do Novo PAC – Rio Grande do Sul</h1>
+<p style="color:#ccc;">Fonte: Casa Civil – Governo Federal — Atualização Agosto 2025</p>
 
-  <h1>Painel do Novo PAC – RS</h1>
-  <div class="meta">Fonte: Novo PAC – Casa Civil – Governo Federal — Atualização Agosto/2025</div>
+<div id="valorTotal">Total: R$ 0</div>
 
-  <div id="valorTotal">Total: R$ 0</div>
-
-  <div class="card">
-    <div class="filters">
-      <b>Atualização:</b>
-      <select id="selAtual"></select>
-      <b style="margin-left:10px">Município:</b>
-      <select id="selMuni">
-        <option>Todos</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Estrutura Hierárquica do Novo PAC</h2>
-    <div id="hier">
-      <!-- preenchido por JS -->
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="card col">
-      <h2>Tipo de Executor</h2>
-      <div id="chartExecutor" class="chart"></div>
-    </div>
-    <div class="card col">
-      <h2>Estágio</h2>
-      <div id="chartEstagio" class="chart"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Classificação</h2>
-    <div id="chartClassificacao" class="chart"></div>
-  </div>
-
-  <div class="card scroll-x">
-    <h2>Eixo</h2>
-    <div id="chartEixo" class="chart wide"></div>
-  </div>
-
-  <div class="row">
-    <div class="card col scroll-x">
-      <h2>Subeixo</h2>
-      <div id="chartSubeixo" class="chart wide"></div>
-    </div>
-    <div class="card col scroll-x">
-      <h2>Modalidade</h2>
-      <div id="chartModalidade" class="chart wide"></div>
-    </div>
-  </div>
-
-  <div class="card scroll-x">
-    <h2>Empreendimentos</h2>
-    <div id="chartEmp" class="chart wider"></div>
-  </div>
-
-  <button id="btnPDF">📄 Baixar PDF</button>
-
+<div class="card">
+<b>Atualização:</b> <select id="selAtual"></select>
+<b>Município:</b> <select id="selMuni"><option>Todos</option></select>
 </div>
 
+<div class="card">
+<h2>Estrutura Hierárquica do PAC</h2>
+<div id="hier"></div>
+</div>
+
+<div class="card"><h2>Tipo de Executor</h2><div id="chartExecutor" class="chart"></div></div>
+<div class="card"><h2>Estágio</h2><div id="chartEstagio" class="chart"></div></div>
+<div class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart"></div></div>
+
+<div class="card scroll-x"><h2>Eixo</h2><div id="chartEixo" class="chart wide"></div></div>
+<div class="card scroll-x"><h2>Subeixo</h2><div id="chartSubeixo" class="chart wide"></div></div>
+<div class="card scroll-x"><h2>Modalidade</h2><div id="chartModalidade" class="chart wide"></div></div>
+<div class="card scroll-x"><h2>Empreendimentos</h2><div id="chartEmp" class="chart wider"></div></div>
+
+<button id="btnPDF">📄 Baixar PDF</button>
+
 <script>
-const CSV_FILE = "pac_abril_julho_agosto_v1.csv";
+const CSV_FILE = "https://raw.githubusercontent.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv";
 
 let raw = [];
 let filters = { Atualizacao: null, Municipio: "Todos" };
 
-// =============== Utilidades ===============
-const fmtBR = (n) => {
-  if (!isFinite(n)) return "R$ 0";
-  if (n >= 1e9) return "R$ " + (n/1e9).toFixed(2).replace(".", ",") + " bi";
-  if (n >= 1e6) return "R$ " + (n/1e6).toFixed(2).replace(".", ",") + " mi";
-  if (n >= 1e3) return "R$ " + n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, "."); 
-  return "R$ " + n.toFixed(0).replace(".", ",");
-};
+const fmtBR = v => isFinite(v) ? (
+  v>=1e9?"R$ "+(v/1e9).toFixed(2)+" bi":
+  v>=1e6?"R$ "+(v/1e6).toFixed(2)+" mi":
+  "R$ "+v.toLocaleString("pt-BR")
+) : "R$ 0";
 
-const parseMoney = (s) => {
-  if (s == null) return 0;
-  return parseFloat((String(s)).replace(/R\$|\s|\./g, "").replace(",", ".")) || 0;
-};
-const parsePct = (s) => {
-  if (s == null) return 0;
-  return parseFloat((String(s)).replace("%","").replace(",", ".")) || 0;
-};
+const parseMoney = s => parseFloat((s||"").replace(/R\$|\./g,"").replace(",","."))||0;
+const parsePct = s => parseFloat((s||"").replace("%","").replace(",",".") )||0;
 
-// Média ponderada de execução por Valor
-function aggWeightedExec(rows, key){
-  const map = {};
-  rows.forEach(r=>{
-    const k = r[key] || "Não informado";
-    if (!map[k]) map[k] = {sumValor:0, sumPesoExec:0};
-    map[k].sumValor += r.Valor;
-    map[k].sumPesoExec += r.Valor * r.Exec/100.0;
-  });
-  return Object.entries(map).map(([k, obj])=>{
-    const media = obj.sumValor>0 ? (obj.sumPesoExec/obj.sumValor)*100 : 0;
-    return {k, valor: obj.sumValor, exec: media};
-  }).sort((a,b)=>b.valor-a.valor);
+function agg(rows, key){
+ let m={};
+ rows.forEach(r=>{
+  const k=r[key]||"Não informado";
+  m[k]=(m[k]||0)+r.Valor;
+ });
+ return Object.entries(m).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v);
+}
+
+function aggExec(rows, key){
+ let m={};
+ rows.forEach(r=>{
+  const k=r[key]||"Não informado";
+  if(!m[k])m[k]={v:0, w:0};
+  m[k].v+=r.Valor;
+  m[k].w+=r.Valor*(r.Exec/100);
+ });
+ return Object.entries(m).map(([k,o])=>({
+  k, valor:o.v, exec:o.v? (o.w/o.v*100):0
+ })).sort((a,b)=>b.valor-a.valor);
 }
 
 function filtered(){
-  return raw.filter(r =>
-    (filters.Atualizacao==null || r.Atualizacao===filters.Atualizacao) &&
-    (filters.Municipio==="Todos" || r.Municipio===filters.Municipio)
-  );
+ return raw.filter(r =>
+  (filters.Atualizacao===null || r.Atualizacao===filters.Atualizacao) &&
+  (filters.Municipio==="Todos" || r.Municipio===filters.Municipio)
+ );
 }
 
-// =============== Carga do CSV ===============
-Papa.parse(CSV_FILE, {
-  download: true,
-  header: true,
-  skipEmptyLines: true,
-  complete: (res) => {
-    if (res.errors.length > 0) {
-      console.error("Erros no parse:", res.errors);
-    }
-    
-    raw = res.data
-      .filter(row => row && Object.keys(row).length > 0) // Remove linhas vazias
-      .map(r => {
-        return {
-          Atualizacao: r["Atualização"] || r["Atualizacao"] || "N/A",
-          Municipio: r["Município"] || r["Municipio"] || "N/A",
-          Executor: r["Tipo de Executor"] || r["Executor"] || "N/A",
-          Estagio: r["Estágio"] || r["Estagio"] || "N/A",
-          Classificacao: r["Classificação"] || r["Classificacao"] || "N/A",
-          Eixo: r["Eixo"] || "N/A",
-          Subeixo: r["Subeixo"] || "N/A",
-          Modalidade: r["Modalidade"] || "N/A",
-          Emp: r["Empreendimento"] || r["Emp"] || "N/A",
-          Valor: parseMoney(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"] || r["Valor"] || 0),
-          Exec: parsePct(r["Percentual de execução do empreendimento (%)"] || r["Exec"] || 0)
-        };
-      });
+Papa.parse(CSV_FILE,{
+ download:true,
+ header:true,
+ complete:(res)=>{
+  raw = res.data.map(r=>({
+   Atualizacao:r["Atualização"],
+   Municipio:r["Município"],
+   Executor:r["Tipo de Executor"],
+   Estagio:r["Estágio"],
+   Classificacao:r["Classificação"],
+   Eixo:r["Eixo"],
+   Subeixo:r["Subeixo"],
+   Modalidade:r["Modalidade"],
+   Emp:r["Empreendimento"],
+   Valor:parseMoney(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
+   Exec:parsePct(r["Percentual de execução do empreendimento (%)"])
+  }));
 
-    console.log(`${raw.length} registros processados`);
-    
-    if (raw.length === 0) {
-      alert("Nenhum dado foi carregado. Verifique a estrutura do CSV.");
-      return;
-    }
-    
-    initFilters();
-    renderAll();
-  },
-  error: (err) => {
-    console.error("Falha ao carregar arquivo:", err);
-    alert(`Erro ao carregar CSV: ${err.message}`);
-  }
+  const selAtual=document.getElementById("selAtual");
+  const updates=[...new Set(raw.map(x=>x.Atualizacao))].sort();
+  selAtual.innerHTML=updates.map(x=>`<option>${x}</option>`).join("");
+  filters.Atualizacao=updates.at(-1);
+  selAtual.value=filters.Atualizacao;
+  selAtual.onchange=e=>{filters.Atualizacao=e.target.value;renderAll();};
+
+  const selM=document.getElementById("selMuni");
+  [...new Set(raw.map(x=>x.Municipio))].sort()
+   .forEach(m=>selM.innerHTML+=`<option>${m}</option>`);
+  selM.onchange=e=>{filters.Municipio=e.target.value;renderAll();};
+
+  renderAll();
+ }
 });
 
-// =============== Filtros ===============
-function initFilters(){
-  // Atualização (SEM "Todos")
-  const u = [...new Set(raw.map(d=>d.Atualizacao))].filter(x=>x!=null && x!="N/A");
-  u.sort();
-  const selAtual = document.getElementById("selAtual");
-  selAtual.innerHTML = u.map(v=>`<option>${v}</option>`).join("");
-  filters.Atualizacao = u[u.length-1]; // começa na mais recente
-  selAtual.value = filters.Atualizacao;
-  selAtual.onchange = (e)=>{ filters.Atualizacao = e.target.value; renderAll(); };
-
-  // Município (com "Todos")
-  const m = [...new Set(raw.map(d=>d.Municipio))].filter(x=>x!=null && x!="N/A").sort();
-  const selMuni = document.getElementById("selMuni");
-  m.forEach(v => selMuni.innerHTML += `<option>${v}</option>`);
-  selMuni.onchange = (e)=>{ filters.Municipio = e.target.value; renderAll(); };
-}
-
-// =============== Hierarquia & Card ===============
 function renderHierarchy(){
-  const f = filtered();
-  const uniq = (arr) => new Set(arr).size;
-
-  const html = `
-    <div class="hier-box"><div class="hitem">🧭 Eixos<br><b>${uniq(f.map(x=>x.Eixo))}</b></div></div>
-    <div class="arrow">↓</div>
-    <div class="hier-box"><div class="hitem">🔁 Subeixos<br><b>${uniq(f.map(x=>x.Subeixo))}</b></div></div>
-    <div class="arrow">↓</div>
-    <div class="hier-box"><div class="hitem">📦 Modalidades<br><b>${uniq(f.map(x=>x.Modalidade))}</b></div></div>
-    <div class="arrow">↓</div>
-    <div class="hier-box"><div class="hitem blue">🏗️ Empreendimentos<br><b>${uniq(f.map(x=>x.Emp))}</b></div></div>
-    <div class="arrow">↓</div>
-    <div class="hier-box">
-      <div class="hitem">🏷️ Classificação<br><b>${uniq(f.map(x=>x.Classificacao))}</b></div>
-      <div class="hitem">🚧 Estágio<br><b>${uniq(f.map(x=>x.Estagio))}</b></div>
-      <div class="hitem">🏛️ Executor<br><b>${uniq(f.map(x=>x.Executor))}</b></div>
-    </div>
-  `;
-  document.getElementById("hier").innerHTML = html;
-
-  const total = f.reduce((acc, r)=>acc+r.Valor, 0);
-  document.getElementById("valorTotal").innerText = "Total: " + fmtBR(total);
+ let f=filtered(),u=a=>new Set(a).size;
+ let html=`
+ <div class="hier-box"><div class="hitem">🧭 Eixos<br><b>${u(f.map(x=>x.Eixo))}</b></div></div>
+ <div class="arrow">↓</div>
+ <div class="hier-box"><div class="hitem">🔁 Subeixos<br><b>${u(f.map(x=>x.Subeixo))}</b></div></div>
+ <div class="arrow">↓</div>
+ <div class="hier-box"><div class="hitem">📦 Modalidades<br><b>${u(f.map(x=>x.Modalidade))}</b></div></div>
+ <div class="arrow">↓</div>
+ <div class="hier-box"><div class="hitem blue">🏗️ Empreendimentos<br><b>${u(f.map(x=>x.Emp))}</b></div></div>
+ `;
+ document.getElementById("hier").innerHTML=html;
+ document.getElementById("valorTotal").innerText="Total: "+fmtBR(f.reduce((a,b)=>a+b.Valor,0));
 }
 
-// =============== Gráficos ===============
-function pieChart(id, key){
-  const a = aggWeightedExec(filtered(), key);
-  Plotly.newPlot(id, [{
-    labels: a.map(x=>x.k),
-    values: a.map(x=>x.valor),
-    type: "pie",
-    textinfo: "label+percent",
-    hole: 0.25,
-    hovertemplate: "%{label}<br><b>"+a.map(x=>fmtBR(x.valor))+
-      "</b><br>Média exec.: "+a.map(x=>x.exec.toFixed(1).replace(".",","))+"%<extra></extra>"
-  }], {
-    paper_bgcolor:"#0a0a0a", plot_bgcolor:"#0a0a0a",
-    font:{color:"#fff"}, legend:{x:0.85, y:0.5}
-  }, {responsive:true});
+function pie(id,key){
+ let a=aggExec(filtered(),key);
+ Plotly.newPlot(id,[{
+  labels:a.map(x=>x.k),values:a.map(x=>x.valor),type:"pie",hole:.25,
+  textinfo:"label+percent",
+  hovertemplate:"%{label}<br><b>"+a.map(x=>fmtBR(x.valor))+ "</b><br>Exec média: "+a.map(x=>x.exec.toFixed(1))+"%<extra></extra>"
+ }],{paper_bgcolor:"#0a0a0a",font:{color:"#fff"}});
 }
 
-function barChart(id, key){
-  const a = aggWeightedExec(filtered(), key);
-  Plotly.newPlot(id, [{
-    x: a.map(x=>x.k), y: a.map(x=>x.valor),
-    type: "bar", marker:{color:"#ef4444"},
-    hovertemplate: "%{x}<br><b>%{customdata}</b><br>Média exec.: %{meta}%%<extra></extra>",
-    customdata: a.map(x=>fmtBR(x.valor)),
-    meta: a.map(x=>x.exec.toFixed(1).replace(".",","))
-  }], {
-    paper_bgcolor:"#0a0a0a", plot_bgcolor:"#0a0a0a", font:{color:"#fff"},
-    margin:{b:130}, xaxis:{tickangle:-30}, yaxis:{tickformat:",.0f"}
-  }, {responsive:true});
+function bar(id,key){
+ let a=aggExec(filtered(),key);
+ Plotly.newPlot(id,[{
+  x:a.map(x=>x.k),y:a.map(x=>x.valor),type:"bar",marker:{color:"#ef4444"},
+  hovertemplate:"%{x}<br><b>%{customdata}</b><br>Exec: %{meta}%%<extra></extra>",
+  customdata:a.map(x=>fmtBR(x.valor)),meta:a.map(x=>x.exec.toFixed(1))
+ }],{paper_bgcolor:"#0a0a0a",font:{color:"#fff"},margin:{b:140},xaxis:{tickangle:-30}});
 }
 
-function barChartWide(id, key, widthClass="wide"){
-  document.getElementById(id).classList.add(widthClass);
-  barChart(id, key);
+function barH(id,key){
+ let a=aggExec(filtered(),key);
+ Plotly.newPlot(id,[{
+  x:a.map(x=>x.valor),y:a.map(x=>x.k),orientation:"h",type:"bar",marker:{color:"#ef4444"},
+  hovertemplate:"%{y}<br><b>%{customdata}</b><br>Exec: %{meta}%%<extra></extra>",
+  customdata:a.map(x=>fmtBR(x.valor)),meta:a.map(x=>x.exec.toFixed(1))
+ }],{paper_bgcolor:"#0a0a0a",font:{color:"#fff"},margin:{l:240}});
 }
 
-function barChartH(id, key){
-  const a = aggWeightedExec(filtered(), key);
-  Plotly.newPlot(id, [{
-    x: a.map(x=>x.valor), y: a.map(x=>x.k),
-    type:"bar", orientation:"h", marker:{color:"#ef4444"},
-    hovertemplate: "%{y}<br><b>%{customdata}</b><br>Média exec.: %{meta}%%<extra></extra>",
-    customdata: a.map(x=>fmtBR(x.valor)),
-    meta: a.map(x=>x.exec.toFixed(1).replace(".",","))
-  }], {
-    paper_bgcolor:"#0a0a0a", plot_bgcolor:"#0a0a0a", font:{color:"#fff"},
-    margin:{l:240}, xaxis:{tickformat:",.0f"}
-  }, {responsive:true});
-}
-
-// =============== Render ===============
 function renderAll(){
-  renderHierarchy();
-  pieChart("chartExecutor","Executor");
-  pieChart("chartEstagio","Estagio");
-  barChart("chartClassificacao","Classificacao");
-  barChartWide("chartEixo","Eixo","wide");
-  barChartWide("chartSubeixo","Subeixo","wide");
-  barChartWide("chartModalidade","Modalidade","wide");
-  barChartH("chartEmp","Emp");
+ renderHierarchy();
+ pie("chartExecutor","Executor");
+ pie("chartEstagio","Estagio");
+ bar("chartClassificacao","Classificacao");
+ bar("chartEixo","Eixo");
+ bar("chartSubeixo","Subeixo");
+ bar("chartModalidade","Modalidade");
+ barH("chartEmp","Emp");
 }
 
-// =============== PDF ===============
-document.getElementById("btnPDF").onclick = async ()=>{
-  const { jsPDF } = window.jspdf;
-  const node = document.querySelector(".wrap");
-  const canvas = await html2canvas(node, {scale:2, useCORS:true, backgroundColor:"#0a0a0a"});
-  const img = canvas.toDataURL("image/png");
-  const pdf = new jsPDF("l","pt","a4");
-  // Ajuste para preencher página mantendo proporção
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  pdf.addImage(img, "PNG", 0, 0, pageW, pageH);
-  pdf.save("relatorio_pac.pdf");
+document.getElementById("btnPDF").onclick = async()=>{
+ const {jsPDF}=window.jspdf;
+ const canvas=await html2canvas(document.body,{scale:2});
+ const pdf=new jsPDF("landscape");
+ pdf.addImage(canvas,"PNG",0,0,295,200);
+ pdf.save("Relatorio_PAC_RS.pdf");
 };
 </script>
 </body>
