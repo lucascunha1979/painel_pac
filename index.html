@@ -1,198 +1,166 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<title>Painel Novo PAC – Rio Grande do Sul</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8">
+<title>Painel do Novo PAC – Rio Grande do Sul</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 <style>
-:root{--bg:#0a0a0a;--panel:#1a1a1a;--red:#ef4444;--muted:#ccc;}
-body{margin:0;padding:18px;background:var(--bg);color:#fff;font-family:Arial;}
-h1{font-size:26px;margin-bottom:6px;}
-h2{color:var(--red);margin-bottom:10px;}
-.card{background:var(--panel);padding:16px;border-radius:12px;margin-bottom:18px;border:1px solid #222;}
-select{padding:8px;background:#000;color:#fff;border:1px solid #555;border-radius:8px;margin-right:10px;}
-.chart{height:420px;}
-#valorTotal{background:var(--red);padding:14px;border-radius:10px;font-size:30px;font-weight:bold;text-align:center;margin-bottom:20px;}
-.hier-box{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;}
-.hitem{background:#f5f5d8;color:#000;padding:10px;border-radius:10px;border:1px solid #aaa;font-weight:bold;text-align:center;min-width:160px;}
-.hitem.blue{background:#b7d8eb;}
-.arrow{text-align:center;margin:4px 0;}
-.scroll-x{overflow-x:auto;}
-.chart.wide{width:1400px;}
-.chart.wider{width:2000px;}
-#btnPDF{position:fixed;bottom:20px;right:20px;background:var(--red);color:#fff;border:0;padding:12px 18px;border-radius:8px;font-weight:bold;cursor:pointer;}
+:root {
+  --bg: #0a0a0a; --panel:#1b1b1b; --text:#ffffff; --accent:#ef4444;
+}
+.light {
+  --bg:#ffffff; --panel:#f1f1f1; --text:#000000; --accent:#b91c1c;
+}
+body{background:var(--bg);color:var(--text);font-family:Arial;margin:0;padding:18px;}
+.wrap{max-width:1500px;margin:auto}
+h1{margin:0;font-size:26px}
+h2{margin:0 0 10px;font-size:20px;color:var(--accent)}
+.card{background:var(--panel);padding:15px;border-radius:10px;margin-bottom:18px;border:1px solid #333;}
+select{padding:6px;background:var(--bg);color:var(--text);border:1px solid #666;border-radius:6px;margin-right:10px;}
+button{cursor:pointer}
+#valorTotal{background:var(--accent);color:white;padding:12px;font-size:26px;text-align:center;border-radius:10px;margin-bottom:15px}
+.chart{height:380px}
+.scroll-x{overflow-x:auto}
+.wide{width:1600px}
+#themeToggle{position:fixed;top:10px;right:10px;padding:6px 12px;background:var(--accent);border:0;border-radius:8px;color:white;font-weight:bold}
+#resetBtn{padding:6px 12px;background:gray;border:0;border-radius:8px;color:white;margin-left:10px}
+#pdfBtn{position:fixed;bottom:10px;right:10px;padding:8px 14px;background:var(--accent);border:0;border-radius:8px;color:white;font-weight:bold}
 </style>
 </head>
-
 <body>
+<button id="themeToggle">🌙</button>
+<div class="wrap">
 <h1>Painel do Novo PAC – Rio Grande do Sul</h1>
-<p style="color:#ccc;">Fonte: Casa Civil – Governo Federal — Atualização Agosto 2025</p>
-
+<p>Fonte: Novo PAC – Casa Civil – Governo Federal — Atualização Agosto/2025</p>
 <div id="valorTotal">Total: R$ 0</div>
 
 <div class="card">
 <b>Atualização:</b> <select id="selAtual"></select>
 <b>Município:</b> <select id="selMuni"><option>Todos</option></select>
+<button id="resetBtn">🔄 Resetar filtros</button>
 </div>
 
-<div class="card">
-<h2>Estrutura Hierárquica do PAC</h2>
-<div id="hier"></div>
+<div class="card"><h2>Hierarquia (Eixo > Subeixo > Modalidade > Empreendimento)</h2>
+<div id="hier"></div></div>
+
+<div class="card"><h2>Tipo de Executor</h2><div id="exec" class="chart"></div></div>
+<div class="card"><h2>Estágio</h2><div id="est" class="chart"></div></div>
+<div class="card"><h2>Classificação</h2><div id="class" class="chart"></div></div>
+
+<div class="card scroll-x"><h2>Eixo</h2><div id="eixo" class="chart wide"></div></div>
+<div class="card scroll-x"><h2>Subeixo</h2><div id="sub" class="chart wide"></div></div>
+<div class="card scroll-x"><h2>Modalidade</h2><div id="mod" class="chart wide"></div></div>
+<div class="card scroll-x"><h2>Empreendimentos</h2><div id="emp" class="chart wide"></div></div>
 </div>
 
-<div class="card"><h2>Tipo de Executor</h2><div id="chartExecutor" class="chart"></div></div>
-<div class="card"><h2>Estágio</h2><div id="chartEstagio" class="chart"></div></div>
-<div class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart"></div></div>
-
-<div class="card scroll-x"><h2>Eixo</h2><div id="chartEixo" class="chart wide"></div></div>
-<div class="card scroll-x"><h2>Subeixo</h2><div id="chartSubeixo" class="chart wide"></div></div>
-<div class="card scroll-x"><h2>Modalidade</h2><div id="chartModalidade" class="chart wide"></div></div>
-<div class="card scroll-x"><h2>Empreendimentos</h2><div id="chartEmp" class="chart wider"></div></div>
-
-<button id="btnPDF">📄 Baixar PDF</button>
+<button id="pdfBtn">📄 PDF</button>
 
 <script>
-const CSV_FILE = "https://raw.githubusercontent.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv";
+const CSV_FILE="https://raw.githack.com/lucascunha1979/painel-pac/main/pac_abril_julho_agosto_v1.csv";
+let raw=[],filters={Atual:null,Muni:"Todos"};
+let drill={Eixo:null,Subeixo:null,Modalidade:null};
 
-let raw = [];
-let filters = { Atualizacao: null, Municipio: "Todos" };
+function wrap(s){return String(s).replace(/(.{18})/g,"$1<br>");}
+function money(v){if(v>=1e9)return"R$ "+(v/1e9).toFixed(2)+" bi";if(v>=1e6)return"R$ "+(v/1e6).toFixed(2)+" mi";return"R$ "+v.toFixed(0);}
+function parseM(s){return parseFloat((s||"").replace(/R\\$|\\./g,"").replace(",","."))||0;}
+function parseP(s){return parseFloat((s||"").replace("%","").replace(",", "."))||0;}
 
-const fmtBR = v => isFinite(v) ? (
-  v>=1e9?"R$ "+(v/1e9).toFixed(2)+" bi":
-  v>=1e6?"R$ "+(v/1e6).toFixed(2)+" mi":
-  "R$ "+v.toLocaleString("pt-BR")
-) : "R$ 0";
+Papa.parse(CSV_FILE,{download:true,header:true,complete:(res)=>{
+ raw=res.data.map(r=>({
+  Atual:r["Atualização"],Muni:r["Município"],
+  Exec:r["Tipo de Executor"],Est:r["Estágio"],Class:r["Classificação"],
+  Eixo:r["Eixo"],Sub:r["Subeixo"],Mod:r["Modalidade"],Emp:r["Empreendimento"],
+  Valor:parseM(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
+  ExecPct:parseP(r["Percentual de execução do empreendimento (%)"])
+ }));
+ initFilters();renderAll();
+}});
 
-const parseMoney = s => parseFloat((s||"").replace(/R\$|\./g,"").replace(",","."))||0;
-const parsePct = s => parseFloat((s||"").replace("%","").replace(",",".") )||0;
+function initFilters(){
+ let u=[...new Set(raw.map(x=>x.Atual))].filter(Boolean).sort();
+ selAtual.innerHTML=u.map(x=>`<option>${x}</option>`).join("");filters.Atual=u[u.length-1];
+ selAtual.value=filters.Atual;selAtual.onchange=e=>{filters.Atual=e.target.value;renderAll();}
+ let m=[...new Set(raw.map(x=>x.Muni))].filter(Boolean).sort();
+ m.forEach(x=>selMuni.innerHTML+=`<option>${x}</option>`);selMuni.onchange=e=>{filters.Muni=e.target.value;renderAll();}
+}
 
-function agg(rows, key){
- let m={};
- rows.forEach(r=>{
-  const k=r[key]||"Não informado";
-  m[k]=(m[k]||0)+r.Valor;
+function subset(){
+return raw.filter(r=>
+ r.Atual===filters.Atual &&
+ (filters.Muni==="Todos"||r.Muni===filters.Muni) &&
+ (!drill.Eixo||r.Eixo===drill.Eixo) &&
+ (!drill.Subeixo||r.Sub===drill.Subeixo) &&
+ (!drill.Modalidade||r.Mod===drill.Modalidade)
+);
+}
+
+function agg(col){
+ let m={},s=subset();
+ s.forEach(r=>{
+  let k=r[col]||"Não informado";
+  if(!m[k])m[k]={v:0,w:0};
+  m[k].v+=r.Valor;m[k].w+=r.Valor*r.ExecPct/100;
  });
- return Object.entries(m).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v);
+ return Object.entries(m).map(([k,x])=>({k,v:x.v,exec:(x.v? (x.w/x.v*100):0)})).sort((a,b)=>b.v-a.v);
 }
 
-function aggExec(rows, key){
- let m={};
- rows.forEach(r=>{
-  const k=r[key]||"Não informado";
-  if(!m[k])m[k]={v:0, w:0};
-  m[k].v+=r.Valor;
-  m[k].w+=r.Valor*(r.Exec/100);
- });
- return Object.entries(m).map(([k,o])=>({
-  k, valor:o.v, exec:o.v? (o.w/o.v*100):0
- })).sort((a,b)=>b.valor-a.valor);
+function hier(){
+ let s=subset();
+ let h=`<b>Eixos:</b> ${new Set(s.map(x=>x.Eixo)).size} → 
+<b>Subeixos:</b> ${new Set(s.map(x=>x.Sub)).size} → 
+<b>Modalidades:</b> ${new Set(s.map(x=>x.Mod)).size} → 
+<b>Empreendimentos:</b> ${new Set(s.map(x=>x.Emp)).size}`;
+ hier.innerHTML=h;
+ valorTotal.innerText="Total: "+money(s.reduce((a,r)=>a+r.Valor,0));
 }
 
-function filtered(){
- return raw.filter(r =>
-  (filters.Atualizacao===null || r.Atualizacao===filters.Atualizacao) &&
-  (filters.Municipio==="Todos" || r.Municipio===filters.Municipio)
- );
+function bar(id,col,drillKey){
+ let a=agg(col);
+ Plotly.newPlot(id,[{x:a.map(x=>wrap(x.k)),y:a.map(x=>x.v),type:"bar",
+ marker:{color:"#ef4444"},
+ customdata:a.map(x=>money(x.v)),meta:a.map(x=>x.exec.toFixed(1)+"%"),
+ hovertemplate:"%{x}<br><b>%{customdata}</b><br>Média Exec: %{meta}<extra></extra>"
+ }],{paper_bgcolor:"transparent",plot_bgcolor:"transparent",
+ font:{color:"var(--text)"},margin:{b:130},xaxis:{tickangle:-30}});
+
+ let plot=document.getElementById(id);
+ plot.on("plotly_click",d=>{drill[drillKey]=d.points[0].x.replace(/<br>/g," ").replace(/(.{18})/g,"");renderAll();});
 }
 
-Papa.parse(CSV_FILE,{
- download:true,
- header:true,
- complete:(res)=>{
-  raw = res.data.map(r=>({
-   Atualizacao:r["Atualização"],
-   Municipio:r["Município"],
-   Executor:r["Tipo de Executor"],
-   Estagio:r["Estágio"],
-   Classificacao:r["Classificação"],
-   Eixo:r["Eixo"],
-   Subeixo:r["Subeixo"],
-   Modalidade:r["Modalidade"],
-   Emp:r["Empreendimento"],
-   Valor:parseMoney(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
-   Exec:parsePct(r["Percentual de execução do empreendimento (%)"])
-  }));
+function pie(id,col){
+ let a=agg(col);
+ Plotly.newPlot(id,[{labels:a.map(x=>wrap(x.k)),values:a.map(x=>x.v),type:"pie",
+ textinfo:"label+percent",
+ hovertemplate:"%{label}<br><b>%{value}</b><extra></extra>"
+ }],{paper_bgcolor:"transparent",plot_bgcolor:"transparent",font:{color:"var(--text)"}});
 
-  const selAtual=document.getElementById("selAtual");
-  const updates=[...new Set(raw.map(x=>x.Atualizacao))].sort();
-  selAtual.innerHTML=updates.map(x=>`<option>${x}</option>`).join("");
-  filters.Atualizacao=updates.at(-1);
-  selAtual.value=filters.Atualizacao;
-  selAtual.onchange=e=>{filters.Atualizacao=e.target.value;renderAll();};
-
-  const selM=document.getElementById("selMuni");
-  [...new Set(raw.map(x=>x.Municipio))].sort()
-   .forEach(m=>selM.innerHTML+=`<option>${m}</option>`);
-  selM.onchange=e=>{filters.Municipio=e.target.value;renderAll();};
-
-  renderAll();
- }
-});
-
-function renderHierarchy(){
- let f=filtered(),u=a=>new Set(a).size;
- let html=`
- <div class="hier-box"><div class="hitem">🧭 Eixos<br><b>${u(f.map(x=>x.Eixo))}</b></div></div>
- <div class="arrow">↓</div>
- <div class="hier-box"><div class="hitem">🔁 Subeixos<br><b>${u(f.map(x=>x.Subeixo))}</b></div></div>
- <div class="arrow">↓</div>
- <div class="hier-box"><div class="hitem">📦 Modalidades<br><b>${u(f.map(x=>x.Modalidade))}</b></div></div>
- <div class="arrow">↓</div>
- <div class="hier-box"><div class="hitem blue">🏗️ Empreendimentos<br><b>${u(f.map(x=>x.Emp))}</b></div></div>
- `;
- document.getElementById("hier").innerHTML=html;
- document.getElementById("valorTotal").innerText="Total: "+fmtBR(f.reduce((a,b)=>a+b.Valor,0));
-}
-
-function pie(id,key){
- let a=aggExec(filtered(),key);
- Plotly.newPlot(id,[{
-  labels:a.map(x=>x.k),values:a.map(x=>x.valor),type:"pie",hole:.25,
-  textinfo:"label+percent",
-  hovertemplate:"%{label}<br><b>"+a.map(x=>fmtBR(x.valor))+ "</b><br>Exec média: "+a.map(x=>x.exec.toFixed(1))+"%<extra></extra>"
- }],{paper_bgcolor:"#0a0a0a",font:{color:"#fff"}});
-}
-
-function bar(id,key){
- let a=aggExec(filtered(),key);
- Plotly.newPlot(id,[{
-  x:a.map(x=>x.k),y:a.map(x=>x.valor),type:"bar",marker:{color:"#ef4444"},
-  hovertemplate:"%{x}<br><b>%{customdata}</b><br>Exec: %{meta}%%<extra></extra>",
-  customdata:a.map(x=>fmtBR(x.valor)),meta:a.map(x=>x.exec.toFixed(1))
- }],{paper_bgcolor:"#0a0a0a",font:{color:"#fff"},margin:{b:140},xaxis:{tickangle:-30}});
-}
-
-function barH(id,key){
- let a=aggExec(filtered(),key);
- Plotly.newPlot(id,[{
-  x:a.map(x=>x.valor),y:a.map(x=>x.k),orientation:"h",type:"bar",marker:{color:"#ef4444"},
-  hovertemplate:"%{y}<br><b>%{customdata}</b><br>Exec: %{meta}%%<extra></extra>",
-  customdata:a.map(x=>fmtBR(x.valor)),meta:a.map(x=>x.exec.toFixed(1))
- }],{paper_bgcolor:"#0a0a0a",font:{color:"#fff"},margin:{l:240}});
+ let p=document.getElementById(id);
+ p.on("plotly_click",d=>{drill[col]=d.points[0].label.replace(/<br>/g," ");renderAll();});
 }
 
 function renderAll(){
- renderHierarchy();
- pie("chartExecutor","Executor");
- pie("chartEstagio","Estagio");
- bar("chartClassificacao","Classificacao");
- bar("chartEixo","Eixo");
- bar("chartSubeixo","Subeixo");
- bar("chartModalidade","Modalidade");
- barH("chartEmp","Emp");
+ hier();
+ bar("exec","Exec","Executor");
+ bar("est","Est","Estagio");
+ bar("class","Class","Classificacao");
+ bar("eixo","Eixo","Eixo");
+ bar("sub","Sub","Subeixo");
+ bar("mod","Mod","Modalidade");
+ bar("emp","Emp","Emp");
 }
 
-document.getElementById("btnPDF").onclick = async()=>{
- const {jsPDF}=window.jspdf;
- const canvas=await html2canvas(document.body,{scale:2});
- const pdf=new jsPDF("landscape");
- pdf.addImage(canvas,"PNG",0,0,295,200);
- pdf.save("Relatorio_PAC_RS.pdf");
+resetBtn.onclick=()=>{drill={Eixo:null,Subeixo:null,Modalidade:null};renderAll();};
+themeToggle.onclick=()=>{document.body.classList.toggle("light");};
+
+pdfBtn.onclick=async()=>{
+ const { jsPDF }=window.jspdf;let pdf=new jsPDF("l","pt","a4");
+ let node=document.body;let canvas=await html2canvas(node,{scale:2});
+ let img=canvas.toDataURL("image/png");let w=pdf.internal.pageSize.getWidth();
+ let h=pdf.internal.pageSize.getHeight();pdf.addImage(img,"PNG",0,0,w,h);
+ pdf.save("painel_pac.pdf");
 };
 </script>
 </body>
