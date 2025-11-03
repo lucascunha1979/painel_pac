@@ -42,6 +42,7 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 .dark .badge{background:#2a2d2f;color:#fff;border-color:#3a3d40}
 .badge .x{margin-left:6px;cursor:pointer}
 .small{font-size:12px;color:var(--muted)}
+#errorBox{display:none;margin:12px 0;padding:12px;border-radius:8px;background:#ffe8e8;color:#8b0000;border:1px solid #f3bcbc}
 </style>
 </head>
 <body class="">
@@ -57,7 +58,9 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
     </div>
   </div>
 
-  <div id="valorTotal">Total: R$ 0</div>
+  <div id="errorBox"></div>
+
+  <div id="valorTotal" class="card">Total: R$ 0</div>
   <div class="kpis">
     <div class="kpi"><div class="small">Projetos</div><b id="kpiProj">–</b></div>
     <div class="kpi"><div class="small">Municípios</div><b id="kpiMuni">–</b></div>
@@ -90,10 +93,8 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 
   <div class="card scroll-x"><h2>Eixo</h2><div id="chartEixo" class="chart wide"></div></div>
 
-  <!-- Subeixo VERTICAL com rolagem horizontal -->
   <div class="card scroll-x"><h2>Subeixo</h2><div id="chartSubeixo" class="chart wide"></div></div>
 
-  <!-- Modalidade e Empreendimentos HORIZONTAIS com rolagem vertical -->
   <div class="card scroll-y"><h2>Modalidade</h2><div id="chartModalidade" class="chart"></div></div>
   <div class="card scroll-y"><h2>Empreendimentos</h2><div id="chartEmp" class="chart"></div></div>
 
@@ -101,55 +102,51 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 </div>
 
 <script>
-// ======= CONFIG =======
-const CSV_FILE = "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv";
+const URLS = [
+  "https://raw.githubusercontent.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv",
+  "https://cdn.jsdelivr.net/gh/lucascunha1979/painel_pac@main/pac_abril_julho_agosto_v1.csv",
+  "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv"
+];
 
-// ======= HELPERS =======
+function showError(msg){
+  const box = document.getElementById('errorBox');
+  box.style.display = 'block';
+  box.innerHTML = "⚠️ " + msg + "<br><span class='small'>Tente recarregar a página. Se persistir, verifique se o CSV está público e o caminho acima está correto.</span>";
+  console.error(msg);
+}
+
 const BRL = n => isFinite(n) ? n.toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0}) : "R$ 0";
 const parseMoney = s => parseFloat(String(s||"").replace(/R\$|\./g,"").replace(",", "."))||0;
 const parsePct = s => parseFloat(String(s||"").replace("%","").replace(",", "."))||0;
-const wrap = (txt, len=22) => String(txt||"").replace(new RegExp(`(?![^\n]{1,${len}}$)([^\n]{1,${len}})\s`,"g"),"$1<br>");
+const wrap = (txt, len=22) => String(txt||"").replace(new RegExp(`(?![^\\n]{1,${len}}$)([^\\n]{1,${len}})\\s`,"g"),"$1<br>");
 const byUpdateOrder = v => { const x = String(v||"").toLowerCase();
-  if (x.includes("abr")) return 1;
-  if (x.includes("jul")) return 2;
-  if (x.includes("ago")) return 3;
-  return 0;
-};
+  if (x.includes("abr")) return 1; if (x.includes("jul")) return 2; if (x.includes("ago")) return 3; return 0; };
 
-// ======= STATE =======
 let RAW = [];
 let FILTERS = { Atual:null, Muni:"Todos" };
 let DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null };
 
-// ======= LOAD CSV =======
-Papa.parse(CSV_FILE,{
-  download:true, header:true, skipEmptyLines:true,
-  complete: (res)=>{
-    RAW = res.data.map(r=>({
-      Atual:r["Atualização"]||r["Atualizacao"]||"",
-      Muni: r["Município"]||r["Municipio"]||"",
-      Executor: r["Tipo de Executor"]||"",
-      Estagio: r["Estágio"]||r["Estagio"]||"",
-      Classificacao: r["Classificação"]||r["Classificacao"]||"",
-      Eixo: r["Eixo"]||"",
-      Subeixo: r["Subeixo"]||"",
-      Modalidade: r["Modalidade"]||"",
-      Emp: r["Empreendimento"]||"",
-      Valor: parseMoney(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
-      ExecPct: parsePct(r["Percentual de execução do empreendimento (%)"])
-    })).filter(r=>r.Atual && r.Eixo);
+async function loadCSV(){
+  for (const base of URLS){
+    const url = base + (base.includes("?") ? "&" : "?") + "v=" + Date.now();
+    try{
+      const res = await fetch(url, {mode:"cors", cache:"no-store"});
+      if (!res.ok) throw new Error("HTTP " + res.status + " ao buscar " + base);
+      const text = await res.text();
+      const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+      if (!parsed.data || parsed.data.length===0){ throw new Error("CSV vazio em " + base); }
+      return parsed.data;
+    }catch(err){
+      console.warn("Falhou:", base, err);
+    }
+  }
+  throw new Error("Não foi possível baixar o CSV de nenhuma das URLs de fallback.");
+}
 
-    initFilters();
-    renderAll();
-  },
-  error:(e)=>alert("Erro ao carregar CSV: "+e.message)
-});
-
-// ======= FILTERS =======
 function initFilters(){
   const u = [...new Set(RAW.map(d=>d.Atual))].sort((a,b)=>byUpdateOrder(a)-byUpdateOrder(b));
   selAtual.innerHTML = u.map(v=>`<option>${v}</option>`).join("");
-  FILTERS.Atual = u[u.length-1]; // mais recente (agosto)
+  FILTERS.Atual = u[u.length-1];
   selAtual.value = FILTERS.Atual;
   selAtual.onchange = e => { FILTERS.Atual = e.target.value; renderAll(); };
 
@@ -181,7 +178,6 @@ function renderBadges(){
   badges.querySelectorAll(".x").forEach(x=> x.onclick = (e)=>{ const k=e.target.dataset.k; DRILL[k]=null; renderAll(); });
 }
 
-// ======= AGG =======
 function aggWeighted(key){
   const m = {};
   activeRows().forEach(r=>{
@@ -193,7 +189,6 @@ function aggWeighted(key){
   return Object.entries(m).map(([k,o])=>({k, v:o.sum, exec: o.sum? (o.w/o.sum*100):0})).sort((a,b)=>b.v-a.v);
 }
 
-// ======= HIER =======
 function renderHierarchyAndKPIs(){
   const f = activeRows();
   const uniq = arr => new Set(arr).size;
@@ -212,7 +207,6 @@ function renderHierarchyAndKPIs(){
   kpiExec.textContent   = `${execMedia.toFixed(1).replace(".",",")}%`;
 }
 
-// ======= PLOTS =======
 function piePlot(divId, key){
   const a = aggWeighted(key);
   Plotly.newPlot(divId,[{
@@ -238,7 +232,6 @@ function piePlot(divId, key){
 function barPlot(divId, key, opts={}){
   const a = aggWeighted(key);
   const cfg = Object.assign({horizontal:false, height:420, sort:true}, opts);
-
   const container = document.getElementById(divId);
   container.style.height = cfg.height + "px";
 
@@ -286,7 +279,6 @@ function barPlot(divId, key, opts={}){
   });
 }
 
-// ======= RENDER ALL =======
 function renderAll(){
   renderHierarchyAndKPIs();
   renderBadges();
@@ -294,18 +286,16 @@ function renderAll(){
   piePlot("chartEstagio","Estagio");
   barPlot("chartClassificacao","Classificacao",{horizontal:false,height:420});
   barPlot("chartEixo","Eixo",{horizontal:false,height:460});
-  barPlot("chartSubeixo","Subeixo",{horizontal:false,height:520});     // VERTICAL
-  barPlot("chartModalidade","Modalidade",{horizontal:true,height:750}); // HORIZONTAL + rolagem vertical
-  barPlot("chartEmp","Emp",{horizontal:true,height:900});               // HORIZONTAL + rolagem vertical
+  barPlot("chartSubeixo","Subeixo",{horizontal:false,height:520});
+  barPlot("chartModalidade","Modalidade",{horizontal:true,height:750});
+  barPlot("chartEmp","Emp",{horizontal:true,height:900});
 }
 
-// ======= PDF multi-página robusto =======
 document.getElementById("pdfBtn").onclick = async ()=>{
   try{
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF("l","pt","a4");
     const bg = getComputedStyle(document.body).getPropertyValue('--bg');
-
     const capture = async (node) => {
       const canvas = await html2canvas(node,{scale:2, useCORS:true, backgroundColor:bg});
       const img = canvas.toDataURL("image/png");
@@ -316,8 +306,6 @@ document.getElementById("pdfBtn").onclick = async ()=>{
       const h = canvas.height * ratio;
       return {img,w,h,pw,ph};
     };
-
-    // capa
     const cover = document.createElement("div");
     cover.style.padding="24px"; cover.style.background=bg; cover.style.color=getComputedStyle(document.body).getPropertyValue('--text');
     cover.innerHTML = `<h1 style="margin:0 0 8px 0">Painel do Novo PAC – RS</h1>
@@ -327,8 +315,6 @@ document.getElementById("pdfBtn").onclick = async ()=>{
       const {img,w,h,pw,ph} = await capture(cover);
       pdf.addImage(img,"PNG",(pw-w)/2,(ph-h)/2,w,h);
     }
-
-    // cada seção em uma página
     const sections = [
       document.getElementById("valorTotal"),
       document.querySelector(".kpis"),
@@ -341,22 +327,40 @@ document.getElementById("pdfBtn").onclick = async ()=>{
       document.getElementById("chartModalidade").parentElement,
       document.getElementById("chartEmp").parentElement
     ];
-
     for (const sec of sections){
       const {img,w,h,pw,ph} = await capture(sec);
       pdf.addPage();
       pdf.addImage(img,"PNG",(pw-w)/2,(ph-h)/2,w,h);
     }
-
     pdf.save("Painel_PAC_RS.pdf");
   }catch(err){
     console.error(err);
-    alert("Falha ao gerar PDF. Veja o console para detalhes.");
+    showError("Falha ao gerar o PDF: " + err.message);
   }
 };
 
-// Tema
-document.getElementById("themeBtn").onclick = ()=>{ document.body.classList.toggle("dark"); };
+(async ()=>{
+  try{
+    const rows = await loadCSV();
+    RAW = rows.map(r=>({
+      Atual:r["Atualização"]||r["Atualizacao"]||"",
+      Muni: r["Município"]||r["Municipio"]||"",
+      Executor: r["Tipo de Executor"]||"",
+      Estagio: r["Estágio"]||r["Estagio"]||"",
+      Classificacao: r["Classificação"]||r["Classificacao"]||"",
+      Eixo: r["Eixo"]||"",
+      Subeixo: r["Subeixo"]||"",
+      Modalidade: r["Modalidade"]||"",
+      Emp: r["Empreendimento"]||"",
+      Valor: parseMoney(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
+      ExecPct: parsePct(r["Percentual de execução do empreendimento (%)"])
+    })).filter(r=>r.Atual && r.Eixo);
+    initFilters();
+    renderAll();
+  }catch(err){
+    showError("Erro ao carregar CSV: " + err.message);
+  }
+})();
 </script>
 </body>
 </html>
