@@ -34,6 +34,7 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 .kpi b{display:block;font-size:18px;margin-top:4px}
 .chart{height:420px}
 .scroll-x{overflow-x:auto}
+.scroll-y{max-height:700px;overflow-y:auto}
 .chart.wide{width:1700px}
 .chart.wider{width:2200px}
 .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
@@ -88,7 +89,11 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
   <div class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart"></div></div>
 
   <div class="card scroll-x"><h2>Eixo</h2><div id="chartEixo" class="chart wide"></div></div>
-  <div class="card scroll-x"><h2>Subeixo</h2><div id="chartSubeixo" class="chart wide"></div></div>
+
+  <!-- Subeixo invertido para HORIZONTAL + rolagem vertical -->
+  <div class="card scroll-y"><h2>Subeixo</h2><div id="chartSubeixo" class="chart"></div></div>
+
+  <!-- Modalidade e Empreendimentos invertidos para VERTICAL + rolagem horizontal -->
   <div class="card scroll-x"><h2>Modalidade</h2><div id="chartModalidade" class="chart wide"></div></div>
   <div class="card scroll-x"><h2>Empreendimentos</h2><div id="chartEmp" class="chart wider"></div></div>
 
@@ -103,7 +108,7 @@ const CSV_FILE = "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abr
 const BRL = n => isFinite(n) ? n.toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0}) : "R$ 0";
 const parseMoney = s => parseFloat(String(s||"").replace(/R\$|\./g,"").replace(",", "."))||0;
 const parsePct = s => parseFloat(String(s||"").replace("%","").replace(",", "."))||0;
-const wrap = (txt, len=20) => String(txt||"").replace(new RegExp(`(?![^\\n]{1,${len}}$)([^\\n]{1,${len}})\\s`,"g"),"$1<br>");
+const wrap = (txt, len=22) => String(txt||"").replace(new RegExp(`(?![^\n]{1,${len}}$)([^\n]{1,${len}})\s`,"g"),"$1<br>");
 const byUpdateOrder = v => { const x = String(v||"").toLowerCase();
   if (x.includes("abr")) return 1;
   if (x.includes("jul")) return 2;
@@ -214,7 +219,7 @@ function piePlot(divId, key){
     labels:a.map(x=>wrap(x.k,20)),
     values:a.map(x=>x.v),
     type:"pie", hole:.25, textinfo:"label+percent",
-    hovertemplate:"%{label}<br><b>"+a.map(x=>BRL(x.v)).join("|")+"<extra></extra>".split("|")[0]
+    hovertemplate:"%{label}<br><b>%{value:,.0f}</b><extra></extra>"
   }],{
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
     font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
@@ -232,10 +237,14 @@ function piePlot(divId, key){
 
 function barPlot(divId, key, opts={}){
   const a = aggWeighted(key);
-  const cfg = Object.assign({horizontal:false,widthClass:"wide"}, opts);
+  const cfg = Object.assign({horizontal:false, height:420, sort:true}, opts);
+
+  const container = document.getElementById(divId);
+  // adjust height for dense plots
+  container.style.height = cfg.height + "px";
 
   const x = cfg.horizontal ? a.map(x=>x.v) : a.map(x=>wrap(x.k,22));
-  const y = cfg.horizontal ? a.map(x=>wrap(x.k,28)) : a.map(x=>x.v);
+  const y = cfg.horizontal ? a.map(x=>wrap(x.k,26)) : a.map(x=>x.v);
 
   const data = [{
     x, y,
@@ -253,9 +262,17 @@ function barPlot(divId, key, opts={}){
     paper_bgcolor:"rgba(0,0,0,0)",
     plot_bgcolor:"rgba(0,0,0,0)",
     font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
-    margin: cfg.horizontal ? {l:260,r:30,t:10,b:40} : {l:60,r:30,t:10,b:140},
-    xaxis: { automargin:true, tickangle: cfg.horizontal ? 0 : -30, tickformat:",.0f" },
-    yaxis: { automargin:true, tickformat:",.0f" }
+    margin: cfg.horizontal ? {l:280,r:30,t:10,b:40} : {l:60,r:30,t:10,b:160},
+    xaxis: {
+      automargin:true,
+      tickangle: cfg.horizontal ? 0 : -35,
+      categoryorder: cfg.sort ? (cfg.horizontal ? "total ascending" : "total descending") : "trace"
+    },
+    yaxis: {
+      automargin:true,
+      tickformat:",.0f",
+      categoryorder: cfg.sort ? (cfg.horizontal ? "total ascending" : "total descending") : "trace"
+    }
   };
 
   Plotly.newPlot(divId, data, layout, {responsive:true});
@@ -276,29 +293,49 @@ function renderAll(){
   renderBadges();
   piePlot("chartExecutor","Executor");
   piePlot("chartEstagio","Estagio");
-  barPlot("chartClassificacao","Classificacao");               // vertical
-  barPlot("chartEixo","Eixo");                                 // vertical
-  barPlot("chartSubeixo","Subeixo");                           // vertical
-  barPlot("chartModalidade","Modalidade",{horizontal:true});   // HORIZONTAL (melhor leitura)
-  barPlot("chartEmp","Emp",{horizontal:true});                 // HORIZONTAL (melhor leitura)
+  barPlot("chartClassificacao","Classificacao",{horizontal:false,height:420});
+  barPlot("chartEixo","Eixo",{horizontal:false,height:460});
+  barPlot("chartSubeixo","Subeixo",{horizontal:true,height:700});    // invertido + rolagem vertical via .scroll-y
+  barPlot("chartModalidade","Modalidade",{horizontal:false,height:520}); // invertido p/ vertical
+  barPlot("chartEmp","Emp",{horizontal:false,height:600});              // invertido p/ vertical
 }
 
-// ======= PDF =======
+// ======= PDF multi-página =======
 document.getElementById("pdfBtn").onclick = async ()=>{
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF("l","pt","a4");
-  const node = document.getElementById("pagina");
+  const cards = document.querySelectorAll(".topbar, #valorTotal, .kpis, .card");
+  const bg = getComputedStyle(document.body).getPropertyValue('--bg');
+  const addPageFromNode = async (node, addNew=true) => {
+    const canvas = await html2canvas(node,{scale:2, backgroundColor:bg});
+    const img = canvas.toDataURL("image/png");
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
+    const ratio = Math.min(pw/canvas.width, ph/canvas.height);
+    const w = canvas.width * ratio;
+    const h = canvas.height * ratio;
+    if (addNew) pdf.addPage();
+    pdf.addImage(img,"PNG",(pw-w)/2,(ph-h)/2,w,h);
+  };
 
-  const canvas = await html2canvas(node, {scale:1.6, backgroundColor:getComputedStyle(document.body).getPropertyValue('--bg')});
-  const img = canvas.toDataURL("image/png");
-  const pw = pdf.internal.pageSize.getWidth();
-  const ph = pdf.internal.pageSize.getHeight();
-  const ratio = Math.min(pw/canvas.width, ph/canvas.height);
-  const w = canvas.width * ratio;
-  const h = canvas.height * ratio;
-  pdf.addImage(img, "PNG", (pw-w)/2, (ph-h)/2, w, h);
+  // Capa
+  const cover = document.createElement("div");
+  cover.style.padding="24px";
+  cover.style.background=bg;
+  cover.innerHTML = `<h1 style="margin:0 0 8px 0">Painel do Novo PAC – RS</h1>
+  <div>Fonte: Novo PAC – Casa Civil – Governo Federal — Atualização Agosto/2025</div>
+  <div style="margin-top:10px">Atualização: <b>${selAtual.value}</b> • Município: <b>${selMuni.value}</b></div>`;
+  await addPageFromNode(cover,false);
+
+  // Demais seções (cada .card em uma página)
+  for (const el of cards){
+    await addPageFromNode(el);
+  }
   pdf.save("Painel_PAC_RS.pdf");
 };
+
+// Tema
+document.getElementById("themeBtn").onclick = ()=>{ document.body.classList.toggle("dark"); };
 </script>
 </body>
 </html>
