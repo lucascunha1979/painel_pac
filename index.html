@@ -44,8 +44,9 @@ button.btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weigh
 </style>
 </head>
 <body>
-<div class="wrap" id="pagina">
-  <div class="topbar">
+<div class="wrap" id="wrap">
+
+  <section id="sec-top" class="card" style="display:flex;align-items:center;gap:12px;justify-content:space-between">
     <div>
       <h1>Painel do Novo PAC – Rio Grande do Sul</h1>
       <div class="meta">Fonte: Novo PAC – Casa Civil – Governo Federal — Atualização Agosto/2025</div>
@@ -54,16 +55,18 @@ button.btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weigh
       <button id="themeBtn" class="btn btn-accent" title="Alternar tema">🌙/☀️</button>
       <button id="pdfBtn" class="btn btn-accent" title="Baixar PDF">📄 PDF</button>
     </div>
-  </div>
+  </section>
 
-  <div id="valorTotal">Total: R$ 0</div>
-  <div class="kpis">
-    <div class="kpi"><div class="small">Projetos</div><b id="kpiProj">–</b></div>
-    <div class="kpi"><div class="small">Municípios</div><b id="kpiMuni">–</b></div>
-    <div class="kpi"><div class="small">Execução média</div><b id="kpiExec">–</b></div>
-  </div>
+  <section id="sec-kpis" class="card">
+    <div id="valorTotal">Total: R$ 0,00</div>
+    <div class="kpis">
+      <div class="kpi"><div class="small">Projetos</div><b id="kpiProj">–</b></div>
+      <div class="kpi"><div class="small">Municípios</div><b id="kpiMuni">–</b></div>
+      <div class="kpi"><div class="small">Execução média</div><b id="kpiExec">–</b></div>
+    </div>
+  </section>
 
-  <div class="card">
+  <section id="sec-filtros" class="card">
     <div class="topbar">
       <div>
         <b>Atualização:</b>
@@ -76,46 +79,61 @@ button.btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weigh
       </div>
     </div>
     <div class="badges" id="badges"></div>
-  </div>
+  </section>
 
-  <div class="card">
+  <section id="sec-hier" class="card">
     <h2>Estrutura Hierárquica</h2>
     <div id="hier"></div>
-  </div>
+  </section>
 
-  <div class="card"><h2>Tipo de Executor</h2><div id="chartExecutor" class="chart"></div></div>
-  <div class="card"><h2>Estágio</h2><div id="chartEstagio" class="chart"></div></div>
-  <div class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart"></div></div>
+  <section id="sec-executor" class="card"><h2>Tipo de Executor</h2><div id="chartExecutor" class="chart"></div></section>
+  <section id="sec-estagio" class="card"><h2>Estágio</h2><div id="chartEstagio" class="chart"></div></section>
+  <section id="sec-classificacao" class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart"></div></section>
 
-  <div class="card scroll-x"><h2>Eixo</h2><div id="chartEixo" class="chart wide"></div></div>
-  <div class="card scroll-x"><h2>Subeixo</h2><div id="chartSubeixo" class="chart wide"></div></div>
+  <section id="sec-eixo" class="card scroll-x"><h2>Eixo</h2><div id="chartEixo" class="chart wide"></div></section>
 
-  <div class="card"><h2>Modalidade</h2><div class="scroll-y"><div id="chartModalidade" class="chart"></div></div></div>
-  <div class="card"><h2>Empreendimentos</h2><div class="scroll-y"><div id="chartEmp" class="chart"></div></div></div>
+  <!-- Últimos três gráficos em HORIZONTAL + rolagem vertical -->
+  <section id="sec-subeixo" class="card"><h2>Subeixo</h2><div class="scroll-y"><div id="chartSubeixo" class="chart"></div></div></section>
+  <section id="sec-modalidade" class="card"><h2>Modalidade</h2><div class="scroll-y"><div id="chartModalidade" class="chart"></div></div></section>
+  <section id="sec-emp" class="card"><h2>Empreendimentos</h2><div class="scroll-y"><div id="chartEmp" class="chart"></div></div></section>
 
   <div class="small">Clique em qualquer gráfico para filtrar; clique novamente para desfazer. Use “Reset filtros” para limpar tudo.</div>
 </div>
 
 <script>
+// ======= CONFIG =======
 const CSV_CANDIDATES = [
   "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv",
   "https://cdn.jsdelivr.net/gh/lucascunha1979/painel_pac@main/pac_abril_julho_agosto_v1.csv",
   "https://raw.githubusercontent.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv"
 ];
-const BRL = n => isFinite(n)? n.toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0}) : "R$ 0";
+
+// ======= HELPERS =======
+const BRL = n => isFinite(n)
+  ? n.toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2})
+  : "R$ 0,00";
 function parseMoneyBR(s){
   if (s==null) return 0;
-  let t = String(s).replace(/[\u00A0\s]/g,"").replace(/[Rr]\$/g,"").replace(/\./g,"").replace(/,/g,".");
-  const v = parseFloat(t); return isFinite(v)? v:0;
+  let t = String(s).replace(/\u00A0|\s/g,"").replace(/R\$/i,"").replace(/\./g,"").replace(",", ".");
+  const v = parseFloat(t);
+  return isFinite(v) ? v : 0;
 }
-const parsePct = s => { if (s==null) return 0; let t=String(s).replace(/[\u00A0\s]/g,"").replace("%","").replace(",","."); const v=parseFloat(t); return isFinite(v)?v:0; };
-const wrap = (txt, len=24) => String(txt??"").replace(new RegExp(`(?![^\\n]{1,${len}}$)([^\\n]{1,${len}})\\s`,"g"),"$1<br>");
+const parsePct = s => {
+  if (s==null) return 0;
+  let t=String(s).replace(/\u00A0|\s/g,"").replace("%","").replace(",", ".");
+  const v=parseFloat(t);
+  return isFinite(v)? v : 0;
+};
+const ellipsis = (txt, max=48) => { const t=String(txt||""); return t.length>max ? t.slice(0,max-1)+"…" : t; };
+const wrap = (txt, len=24) => String(txt??"").replace(new RegExp(`(?![^\n]{1,${len}}$)([^\n]{1,${len}})\s`,"g"),"$1<br>");
 const byUpdateOrder = v => { const x=String(v||"").toLowerCase(); if(x.includes("abr"))return 1; if(x.includes("jul"))return 2; if(x.includes("ago"))return 3; return 0; };
 
+// ======= STATE =======
 let RAW=[];
 let FILTERS={Atual:null, Muni:"Todos"};
 let DRILL={Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null};
 
+// ======= LOAD CSV with fallback =======
 function loadCSVSequential(urls,onDone,onError){
   if(!urls.length){ onError("Todas as URLs falharam."); return; }
   const url=urls[0];
@@ -145,6 +163,7 @@ loadCSVSequential(CSV_CANDIDATES, (rows)=>{
   initFilters(); renderAll();
 }, (e)=>alert("Erro ao carregar CSV: "+e));
 
+// ======= FILTERS =======
 function initFilters(){
   const u=[...new Set(RAW.map(d=>d.Atual))].sort((a,b)=>byUpdateOrder(a)-byUpdateOrder(b));
   selAtual.innerHTML=u.map(v=>`<option>${v}</option>`).join("");
@@ -178,6 +197,7 @@ function renderBadges(){
   badges.querySelectorAll(".x").forEach(x=> x.onclick=e=>{ const k=e.target.dataset.k; DRILL[k]=null; renderAll(); });
 }
 
+// ======= AGG =======
 function aggWeighted(key){
   const m={};
   activeRows().forEach(r=>{
@@ -189,6 +209,7 @@ function aggWeighted(key){
   return Object.entries(m).map(([k,o])=>({k,v:o.sum,exec:o.sum?(o.w/o.sum*100):0})).sort((a,b)=>b.v-a.v);
 }
 
+// ======= HIER & KPIs =======
 function renderHierarchyAndKPIs(){
   const f=activeRows(); const uniq=a=>new Set(a).size;
   hier.innerHTML=`
@@ -206,25 +227,29 @@ function renderHierarchyAndKPIs(){
   kpiExec.textContent=`${execMedia.toFixed(1).replace(".",",")}%`;
 }
 
+// ======= COLORS =======
 function colors(){ return getComputedStyle(document.body).getPropertyValue('--accent').trim()||'#e11d2e'; }
 function fontColor(){ return getComputedStyle(document.body).getPropertyValue('--text').trim()||'#111'; }
 
+// ======= CLICK (CROSS FILTER) =======
 function attachClick(divId,key,horizontal){
   const el=document.getElementById(divId);
   el.on('plotly_click', d=>{
     const label=horizontal? d.points[0].y : d.points[0].x;
-    const plain=String(label).replace(/<br>/g," ");
-    DRILL[key]=(DRILL[key]===plain)? null : plain;
+    const plain=String(label).replace(/<br>/g," ").replace(/…$/,"");
+    const maybeFull = d.points[0].customdata?.[0] || plain;
+    DRILL[key]=(DRILL[key]===maybeFull)? null : maybeFull;
     renderAll();
   });
 }
 
+// ======= PLOTS =======
 function piePlot(divId,key){
   const a=aggWeighted(key);
   Plotly.newPlot(divId,[{
     labels:a.map(x=>wrap(x.k,22)), values:a.map(x=>x.v),
     type:"pie", hole:.25, textinfo:"label+percent",
-    hovertemplate:`%{label}<br><b>%{value:,.0f}</b><extra></extra>`
+    hovertemplate:`%{label}<br><b>%{value:,.2f}</b><extra></extra>`
   }],{
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
     font:{color:fontColor()}, legend:{orientation:"h"}
@@ -234,69 +259,73 @@ function piePlot(divId,key){
 
 function barPlot(divId,key,opts={}){
   const a=aggWeighted(key);
-  const cfg=Object.assign({horizontal:false,clampHeight:true},opts);
+  const cfg=Object.assign({horizontal:false, clampHeight:true}, opts);
   const n=a.length;
-  const height=cfg.clampHeight? Math.min(1600,(cfg.horizontal? (n*20+120):460)) : 460;
-  const x=cfg.horizontal? a.map(x=>x.v) : a.map(x=>wrap(x.k,24));
-  const y=cfg.horizontal? a.map(x=>wrap(x.k,36)) : a.map(x=>x.v);
+  const height=cfg.clampHeight? Math.min(2200,(cfg.horizontal? (n*22+140):520)) : 520;
+
+  const shownLabels = a.map(x=>ellipsis(x.k, 60));
+
+  const x=cfg.horizontal? a.map(x=>x.v) : shownLabels.map(wrap);
+  const y=cfg.horizontal? shownLabels.map(wrap) : a.map(x=>x.v);
 
   Plotly.newPlot(divId,[{
     x,y,type:"bar",orientation:(cfg.horizontal?"h":"v"),
-    marker:{color:colors()}, customdata:a.map(x=>BRL(x.v)),
-    meta:a.map(x=>x.exec.toFixed(1).replace(".",",")),
+    marker:{color:colors()},
+    customdata: a.map(x=>[x.k, BRL(x.v), x.exec.toFixed(1).replace(".",",")]),
     hovertemplate: cfg.horizontal
-      ? "%{y}<br><b>%{customdata}</b><br>Exec. média: %{meta}%<extra></extra>"
-      : "%{x}<br><b>%{customdata}</b><br>Exec. média: %{meta}%<extra></extra>"
+      ? "%{customdata[0]}<br><b>%{customdata[1]}</b><br>Exec. média: %{customdata[2]}%<extra></extra>"
+      : "%{customdata[0]}<br><b>%{customdata[1]}</b><br>Exec. média: %{customdata[2]}%<extra></extra>"
   }],{
-    height:height, paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    height:height,
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
     font:{color:fontColor()},
-    margin: cfg.horizontal? {l:340,r:30,t:10,b:40} : {l:70,r:30,t:10,b:140},
-    xaxis:{automargin:true, tickangle:(cfg.horizontal?0:-30), tickformat:",.0f"},
+    margin: cfg.horizontal? {l:360,r:30,t:10,b:40} : {l:70,r:30,t:10,b:160},
+    xaxis:{automargin:true, tickangle:(cfg.horizontal?0:-30), tickformat: cfg.horizontal ? ",.0f" : undefined},
     yaxis:{automargin:true, tickformat:",.0f"}
   },{responsive:true});
   attachClick(divId,key,cfg.horizontal);
 }
 
+// ======= RENDER =======
 function renderAll(){
   renderHierarchyAndKPIs();
   renderBadges();
   piePlot("chartExecutor","Executor");
   piePlot("chartEstagio","Estagio");
-  barPlot("chartClassificacao","Classificacao");
-  barPlot("chartEixo","Eixo");
-  barPlot("chartSubeixo","Subeixo");
+  barPlot("chartClassificacao","Classificacao");      // vertical
+  barPlot("chartEixo","Eixo");                        // vertical
+  barPlot("chartSubeixo","Subeixo",{horizontal:true});
   barPlot("chartModalidade","Modalidade",{horizontal:true});
   barPlot("chartEmp","Emp",{horizontal:true});
 }
 
-pdfBtn.onclick = async ()=>{
+// ======= PDF (A4 paisagem, uma seção por página) =======
+document.getElementById("pdfBtn").onclick = async ()=>{
   try{
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF("l","pt","a4");
-    const blocks=[
-      document.querySelector(".topbar").parentElement,
-      document.getElementById("valorTotal").parentElement,
-      document.getElementById("hier").parentElement,
-      document.getElementById("chartExecutor").parentElement,
-      document.getElementById("chartEstagio").parentElement,
-      document.getElementById("chartClassificacao").parentElement,
-      document.getElementById("chartEixo").parentElement,
-      document.getElementById("chartSubeixo").parentElement,
-      document.getElementById("chartModalidade").parentElement,
-      document.getElementById("chartEmp").parentElement
+    const ids = [
+      "sec-top","sec-kpis","sec-filtros","sec-hier",
+      "sec-executor","sec-estagio","sec-classificacao",
+      "sec-eixo","sec-subeixo","sec-modalidade","sec-emp"
     ];
-    for (let i=0;i<blocks.length;i++){
-      const node=blocks[i];
-      const canvas=await html2canvas(node,{scale:2, backgroundColor:getComputedStyle(document.body).getPropertyValue('--bg')});
-      const img=canvas.toDataURL("image/png");
-      const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
-      const ratio=Math.min(pw/canvas.width, ph/canvas.height);
-      const w=canvas.width*ratio, h=canvas.height*ratio;
-      if(i>0) pdf.addPage();
-      pdf.addImage(img,"PNG",(pw-w)/2,(ph-h)/2,w,h);
+    for (let i=0;i<ids.length;i++){
+      const node = document.getElementById(ids[i]);
+      const canvas = await html2canvas(node, {scale:2, backgroundColor:getComputedStyle(document.body).getPropertyValue('--bg')});
+      const img = canvas.toDataURL("image/png");
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = pdf.internal.pageSize.getHeight();
+      const margin = 28;
+      let w = pw - margin*2;
+      let h = w * (canvas.height / canvas.width);
+      if (h > ph - margin*2) { h = ph - margin*2; w = h * (canvas.width / canvas.height); }
+      if (i>0) pdf.addPage("l","a4");
+      pdf.addImage(img, "PNG", (pw-w)/2, (ph-h)/2, w, h);
     }
     pdf.save("Painel_PAC_RS.pdf");
-  }catch(err){ alert("⚠️ Falha ao gerar o PDF. Detalhe: "+(err?.message||err)); }
+  }catch(err){
+    alert("⚠️ Falha ao gerar o PDF. Detalhe: " + (err?.message || err));
+  }
 };
 </script>
 </body>
