@@ -43,11 +43,14 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 .badge .x{margin-left:6px;cursor:pointer}
 .small{font-size:12px;color:var(--muted)}
 .trunc {max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-/* relatório (tabelas) escondido na tela */
-#reportRoot{ display:none; }
-.report-section{ padding:16px; }
+/* relatório (tabelas) inicialmente fora de tela para html2canvas */
+#reportRoot{
+  position:fixed; left:-10000px; top:0; width:1200px;
+  background:#fff; color:#000; padding:0; margin:0; visibility:hidden; display:block;
+}
+.report-section{ padding:16px; page-break-after:always; }
 .report-title{ font-size:22px; font-weight:700; margin:0 0 8px; }
-.report-meta{ color:#666; font-size:12px; margin-bottom:10px; }
+.report-meta{ color:#444; font-size:12px; margin-bottom:10px; }
 .report-table{ width:100%; border-collapse:collapse; font-size:12px; }
 .report-table th, .report-table td{ border:1px solid #999; padding:6px 8px; text-align:left; }
 .report-table th{ background:#f0f0f0; }
@@ -69,7 +72,7 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 
   <div id="valorTotal" class="pdf-section">Total: R$ 0,00</div>
   <div class="kpis pdf-section">
-    <div class="kpi"><div class="small">Empreendimentos</div><b id="kpiEmp">–</b></div>
+    <!-- Removido o KPI “Empreendimentos” como combinado -->
     <div class="kpi"><div class="small">Municípios</div><b id="kpiMuni">–</b></div>
     <div class="kpi"><div class="small">Execução média</div><b id="kpiExec">–</b></div>
   </div>
@@ -107,7 +110,7 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
   <div class="small">Clique em qualquer gráfico para filtrar; clique novamente para desfazer. Use “Reset filtros” para limpar tudo.</div>
 </div>
 
-<!-- CONTEÚDO DO RELATÓRIO (apenas tabelas) -->
+<!-- CONTEÚDO DO RELATÓRIO (apenas tabelas, gerado dinamicamente) -->
 <div id="reportRoot"></div>
 
 <script>
@@ -121,7 +124,7 @@ const CSV_CANDIDATES = [
 // ======= HELPERS =======
 const BRL2 = n => isFinite(n) ? n.toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2}) : "R$ 0,00";
 const parseMoney = s => parseFloat(String(s||"").replace(/R\$|\s|\./g,"").replace(",", "."))||0;
-const parsePct   = s => parseFloat(String(s||"").replace("%","").replace(",", "."));
+const parsePct   = s => { const v = parseFloat(String(s||"").replace("%","").replace(",", ".")); return isFinite(v)?v:NaN; };
 const wrap = (txt, len=28) => String(txt||"").length>len ? String(txt).slice(0,len-1)+"…" : String(txt||"");
 const byUpdateOrder = v => { const x = String(v||"").toLowerCase();
   if (x.includes("abr")) return 1; if (x.includes("jul")) return 2; if (x.includes("ago")) return 3; return 0;
@@ -204,8 +207,9 @@ function aggWeighted(key){
   activeRows().forEach(r=>{
     const k = r[key] || "Não informado";
     if(!m[k]) m[k]={sum:0, w:0};
-    m[k].sum += r.Valor;
-    m[k].w   += r.Valor * ((isFinite(r.ExecPct)?r.ExecPct:0)/100);
+    m[k].sum += (isFinite(r.Valor)?r.Valor:0);
+    const e = isFinite(r.ExecPct)? r.ExecPct : 0;
+    m[k].w   += r.Valor * (e/100);
   });
   return Object.entries(m).map(([k,o])=>({k, v:o.sum, exec: o.sum? (o.w/o.sum*100):0})).sort((a,b)=>b.v-a.v);
 }
@@ -224,8 +228,7 @@ function renderHierarchyAndKPIs(){
   const total = f.reduce((a,r)=>a+(isFinite(r.Valor)?r.Valor:0),0);
   valorTotal.textContent = `Total: ${BRL2(total)}`;
 
-  // KPIs
-  kpiEmp.textContent  = f.length.toLocaleString("pt-BR");
+  // KPIs restantes
   kpiMuni.textContent = new Set(f.map(x=>x.Muni)).size.toLocaleString("pt-BR");
   const execVals = f.map(x=>x.ExecPct).filter(v=>isFinite(v));
   const execMedia = execVals.length ? execVals.reduce((a,b)=>a+b,0)/execVals.length : 0;
@@ -346,8 +349,8 @@ function buildReportHTML(){
     <div class="report-title">Painel do Novo PAC – RS (Relatório em tabelas)</div>
     <div class="report-meta">Atualização: <b>${FILTERS.Atual}</b> &nbsp;|&nbsp; Município: <b>${FILTERS.Muni}</b></div>
     <table class="report-table">
-      <tr><th>Total (R$)</th><th>Empreendimentos</th><th>Municípios</th><th>Execução média (%)</th></tr>
-      <tr><td>${BRL2(total)}</td><td>${f.length.toLocaleString("pt-BR")}</td><td>${uniq(f.map(x=>x.Muni))}</td><td>${execMedia.toFixed(2).replace(".",",")}%</td></tr>
+      <tr><th>Total (R$)</th><th>Municípios</th><th>Execução média (%)</th></tr>
+      <tr><td>${BRL2(total)}</td><td>${uniq(f.map(x=>x.Muni))}</td><td>${execMedia.toFixed(2).replace(".",",")}%</td></tr>
     </table>
     <div class="report-footer">Fonte: Novo PAC (2023-2030) — Casa Civil – Governo Federal (atualização agosto de 2025)</div>
   </section>`;
@@ -368,30 +371,52 @@ function buildReportHTML(){
   return html;
 }
 
-// ======= PDF (apenas tabelas, A4 paisagem, 1 seção por página) =======
+// ======= PDF (tabelas; A4 paisagem; fix para coords inválidas) =======
 document.getElementById("pdfBtn").onclick = async ()=>{
   try{
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF("l","pt","a4");
 
-    // Prepara conteúdo
     const reportRoot = document.getElementById("reportRoot");
+    // garantir visibilidade para renderizar com dimensões válidas
+    const prevStyle = {
+      position: reportRoot.style.position,
+      left: reportRoot.style.left,
+      top: reportRoot.style.top,
+      width: reportRoot.style.width,
+      visibility: reportRoot.style.visibility,
+      display: reportRoot.style.display
+    };
+    reportRoot.style.position = "fixed";
+    reportRoot.style.left = "-10000px";
+    reportRoot.style.top = "0";
+    reportRoot.style.width = "1200px";
+    reportRoot.style.visibility = "visible";
+    reportRoot.style.display = "block";
+
     reportRoot.innerHTML = buildReportHTML();
 
-    // captura seção por seção
     const sections = Array.from(reportRoot.querySelectorAll(".report-section"));
     for (let i=0;i<sections.length;i++){
       const node = sections[i];
       const canvas = await html2canvas(node, {scale:2, backgroundColor:"#ffffff"});
+      const cw = Math.max(1, canvas.width);
+      const ch = Math.max(1, canvas.height);
       const img = canvas.toDataURL("image/png");
+
       const pw = pdf.internal.pageSize.getWidth();
       const ph = pdf.internal.pageSize.getHeight();
-      const ratio = Math.min(pw/canvas.width, ph/canvas.height);
-      const w = canvas.width * ratio;
-      const h = canvas.height * ratio;
-      if(i>0) pdf.addPage("a4","landscape");
+      const ratio = Math.max(0.0001, Math.min(pw/cw, ph/ch)); // evita NaN/0
+      const w = cw * ratio;
+      const h = ch * ratio;
+      if(i>0) pdf.addPage(); // mesma orientação do doc
       pdf.addImage(img, "PNG", (pw-w)/2, (ph-h)/2, w, h);
     }
+
+    // restaura estilo e limpa
+    reportRoot.innerHTML = "";
+    Object.assign(reportRoot.style, prevStyle);
+
     pdf.save("Painel_PAC_RS_tabelas.pdf");
   }catch(e){
     alert("⚠️ Falha ao gerar o PDF. Detalhe: "+e.message);
