@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Painel do Novo PAC – RS</title>
+<title>Painel do Novo PAC – Rio Grande do Sul</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -35,15 +34,16 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 .kpi b{display:block;font-size:18px;margin-top:4px}
 .chart{height:420px}
 .scroll-x{overflow-x:auto}
+.chart.wide{width:1700px}
+.chart.wider{width:2200px}
 .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .badge{background:#e8eaed;color:#111;border-radius:20px;padding:4px 10px;font-size:12px;border:1px solid #cfd1d4}
 .dark .badge{background:#2a2d2f;color:#fff;border-color:#3a3d40}
 .badge .x{margin-left:6px;cursor:pointer}
 .small{font-size:12px;color:var(--muted)}
-.chart-container{max-height:720px; overflow-y:auto;}
 </style>
 </head>
-<body class="">
+<body>
 <div class="wrap" id="pagina">
   <div class="topbar">
     <div>
@@ -78,19 +78,17 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
     <div class="badges" id="badges"></div>
   </div>
 
-  <div class="card">
-    <h2>Estrutura Hierárquica</h2>
-    <div id="hier"></div>
-  </div>
+  <div class="card"><h2>Estrutura Hierárquica</h2><div id="hier"></div></div>
 
   <div class="card"><h2>Tipo de Executor</h2><div id="chartExecutor" class="chart"></div></div>
   <div class="card"><h2>Estágio</h2><div id="chartEstagio" class="chart"></div></div>
-  <div class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart"></div></div>
 
+  <div class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart"></div></div>
   <div class="card"><h2>Eixo</h2><div id="chartEixo" class="chart"></div></div>
-  <div class="card"><h2>Subeixo</h2><div class="chart-container"><div id="chartSubeixo" class="chart"></div></div></div>
-  <div class="card"><h2>Modalidade</h2><div class="chart-container"><div id="chartModalidade" class="chart"></div></div></div>
-  <div class="card"><h2>Empreendimentos</h2><div class="chart-container"><div id="chartEmp" class="chart"></div></div></div>
+
+  <div class="card scroll-x"><h2>Subeixo</h2><div id="chartSubeixo" class="chart wide"></div></div>
+  <div class="card scroll-x"><h2>Modalidade</h2><div id="chartModalidade" class="chart wide"></div></div>
+  <div class="card scroll-x"><h2>Empreendimentos</h2><div id="chartEmp" class="chart wider"></div></div>
 
   <div class="small">Clique em qualquer gráfico para filtrar; clique novamente para desfazer. Use “Reset filtros” para limpar tudo.</div>
 </div>
@@ -99,9 +97,13 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 const CSV_FILE = "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv";
 
 const BRL = n => isFinite(n) ? n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}) : "R$ 0,00";
-const parseMoney = s => parseFloat(String(s||"").replace(/R\$|\s|\./g,"").replace(",", "."))||0;
+const parseMoney = s => parseFloat(String(s||"").replace(/R\\$|\\s|\\./g,"").replace(",", "."))||0;
 const parsePct = s => parseFloat(String(s||"").replace("%","").replace(",", "."))||0;
-function ellipsis(txt,max=38){const s=String(txt||""); return s.length>max? s.slice(0,max-1)+"…": s;}
+const wrap = (txt, len=22) => String(txt||"").replace(new RegExp(`(?![^\\n]{1,${len}}$)([^\\n]{1,${len}})\\s`,"g"),"$1<br>");
+const ellipsize = (txt, len=28) => {
+  const s = String(txt||"");
+  return s.length>len ? s.slice(0,len-1)+"…" : s;
+};
 const byUpdateOrder = v => { const x = String(v||"").toLowerCase();
   if (x.includes("abr")) return 1;
   if (x.includes("jul")) return 2;
@@ -129,6 +131,7 @@ Papa.parse(CSV_FILE,{
       Valor: parseMoney(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
       ExecPct: parsePct(r["Percentual de execução do empreendimento (%)"])
     })).filter(r=>r.Atual && r.Eixo);
+
     initFilters();
     renderAll();
   },
@@ -202,18 +205,20 @@ function renderHierarchyAndKPIs(){
 function piePlot(divId, key){
   const a = aggWeighted(key);
   Plotly.newPlot(divId,[{
-    labels:a.map(x=>ellipsis(x.k,28)),
+    labels:a.map(x=>wrap(x.k,20)),
     values:a.map(x=>x.v),
     type:"pie", hole:.25, textinfo:"label+percent",
-    hovertemplate:"%{label}<br><b>%{value:,.2f}</b><extra></extra>"
+    hovertemplate:"%{label}<br><b>%{customdata}</b><extra></extra>",
+    customdata: a.map(x=>BRL(x.v))
   }],{
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
     font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
     legend:{orientation:"h"}
   },{responsive:true});
+
   const el = document.getElementById(divId);
   el.on('plotly_click', d=>{
-    const label = d.points[0].label.replace(/…$/,''); // plain
+    const label = d.points[0].label.replace(/<br>/g," ");
     const cur = DRILL[key];
     DRILL[key] = (cur===label) ? null : label;
     renderAll();
@@ -224,44 +229,54 @@ function barPlot(divId, key, opts={}){
   const a = aggWeighted(key);
   const cfg = Object.assign({horizontal:false}, opts);
 
-  const fullLabels = a.map(x=>x.k);
-  const shortLabels = fullLabels.map(s=>ellipsis(s, 44));
+  const labelsFull = a.map(x=>x.k);
+  const labelsShort = labelsFull.map(s=>ellipsize(s, 30));
+  const maxLen = labelsShort.reduce((m,s)=>Math.max(m, s.length), 0);
+  const dynBottom = cfg.forceBigBottom
+      ? Math.min(320, 100 + maxLen*4)
+      : Math.min(260, 70 + maxLen*3);
 
-  const x = cfg.horizontal ? a.map(x=>x.v) : shortLabels;
-  const y = cfg.horizontal ? shortLabels : a.map(x=>x.v);
+  const x = cfg.horizontal ? a.map(x=>x.v) : labelsShort;
+  const y = cfg.horizontal ? labelsShort : a.map(x=>x.v);
 
-  const n = a.length;
-  const height = cfg.horizontal ? Math.min(3000, 160 + n * 26) : 540;
-  const maxLen = Math.max(...fullLabels.map(s=>s.length));
-  const leftMargin = cfg.horizontal ? Math.min(720, 140 + maxLen * 6) : 80;
-
-  Plotly.newPlot(divId, [{
+  const data = [{
     x, y,
     type:"bar",
     orientation: cfg.horizontal ? "h" : "v",
     marker:{color:getComputedStyle(document.body).getPropertyValue('--accent')},
-    customdata: fullLabels.map((lbl,i)=>[lbl, a[i].v, a[i].exec]),
+    customdata: a.map(x=>BRL(x.v)),
+    meta: labelsFull,
     hovertemplate: cfg.horizontal
-      ? "%{customdata[0]}<br><b>%{customdata[1]:,.2f}</b><br>Exec. média: %{customdata[2]:.2f}%<extra></extra>"
-      : "%{customdata[0]}<br><b>%{y:,.2f}</b><extra></extra>"
-  }], {
+      ? "%{meta}<br><b>%{customdata}</b><extra></extra>"
+      : "%{meta}<br><b>%{customdata}</b><extra></extra>"
+  }];
+
+  const layout = {
     paper_bgcolor:"rgba(0,0,0,0)",
     plot_bgcolor:"rgba(0,0,0,0)",
     font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
-    height: height,
-    margin: cfg.horizontal ? {l:leftMargin,r:30,t:10,b:40} : {l:80,r:30,t:10,b:140},
-    xaxis: { automargin:true, tickangle: cfg.horizontal ? 0 : -30, tickformat: cfg.horizontal ? ",.0f" : null },
-    yaxis: { automargin:true, tickformat: cfg.horizontal ? null : ",.0f" }
-  }, {responsive:true});
+    margin: cfg.horizontal ? {l:300,r:30,t:10,b:40} : {l:60,r:30,t:10,b:dynBottom},
+    xaxis: { automargin:true, tickangle: cfg.horizontal ? 0 : -25 },
+    yaxis: { automargin:true, tickformat:",.0f" }
+  };
+
+  Plotly.newPlot(divId, data, layout, {responsive:true});
 
   const el = document.getElementById(divId);
   el.on('plotly_click', d=>{
-    const idx = d.points[0].pointIndex;
-    const label = fullLabels[idx];
+    const label = labelsFull[d.points[0].pointIndex];
     const cur = DRILL[key];
     DRILL[key] = (cur===label) ? null : label;
     renderAll();
   });
+}
+
+function barPlotTall(divId, key){
+  const a = aggWeighted(key);
+  const h = Math.max(420, 26*a.length);
+  const el = document.getElementById(divId);
+  el.style.height = h + "px";
+  barPlot(divId, key, {horizontal:true});
 }
 
 function renderAll(){
@@ -269,33 +284,30 @@ function renderAll(){
   renderBadges();
   piePlot("chartExecutor","Executor");
   piePlot("chartEstagio","Estagio");
-  barPlot("chartClassificacao","Classificacao");
-  barPlot("chartEixo","Eixo");
-  barPlot("chartSubeixo","Subeixo",{horizontal:true});
-  barPlot("chartModalidade","Modalidade",{horizontal:true});
-  barPlot("chartEmp","Emp",{horizontal:true});
+  barPlot("chartClassificacao","Classificacao",{forceBigBottom:true});
+  barPlot("chartEixo","Eixo",{forceBigBottom:true});
+  barPlotTall("chartSubeixo","Subeixo");
+  barPlotTall("chartModalidade","Modalidade");
+  barPlotTall("chartEmp","Emp");
 }
 
-// PDF multipágina: cada .card vira uma página
 document.getElementById("pdfBtn").onclick = async ()=>{
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF("l","pt","a4");
-  const cards = Array.from(document.querySelectorAll(".card"));
-  let first = true;
-
-for (const card of cards){
-  const canvas = await html2canvas(card,{scale:1.6, backgroundColor:getComputedStyle(document.body).getPropertyValue('--bg')});
-  const img = canvas.toDataURL("image/png");
-  const pw = pdf.internal.pageSize.getWidth();
-  const ph = pdf.internal.pageSize.getHeight();
-  const ratio = Math.min(pw/canvas.width, ph/canvas.height);
-  const w = canvas.width * ratio;
-  const h = canvas.height * ratio;
-  if (!first) pdf.addPage("l","a4");
-  first = false;
-  pdf.addImage(img,"PNG",(pw-w)/2,(ph-h)/2,w,h);
-}
-pdf.save("Painel_PAC_RS.pdf");
+  const cards = document.querySelectorAll(".card");
+  for (let i=0;i<cards.length;i++){
+    const node = cards[i];
+    const canvas = await html2canvas(node, {scale:1.6, backgroundColor:getComputedStyle(document.body).getPropertyValue('--bg')});
+    const img = canvas.toDataURL("image/png");
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
+    const ratio = Math.min(pw/canvas.width, ph/canvas.height);
+    const w = canvas.width * ratio;
+    const h = canvas.height * ratio;
+    pdf.addImage(img, "PNG", (pw-w)/2, (ph-h)/2, w, h);
+    if (i < cards.length-1) pdf.addPage("a4","landscape");
+  }
+  pdf.save("Painel_PAC_RS.pdf");
 };
 </script>
 </body>
