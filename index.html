@@ -4,39 +4,38 @@
 <meta charset="UTF-8" />
 <title>Painel do Novo PAC – Rio Grande do Sul</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-<script src="https://cdn.plot.ly/plotly-locale-pt-br-latest.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-:root{ --bg:#ffffff; --panel:#f4f5f7; --text:#111; --muted:#555; --accent:#e11d2e; }
-.dark { --bg:#0a0a0a; --panel:#181a1b; --text:#fff; --muted:#c9c9c9; --accent:#ef4444; }
+:root{ --bg:#ffffff; --panel:#f6f7f9; --text:#111; --muted:#555; --accent:#e11d2e; }
+.dark { --bg:#0b0b0c; --panel:#16181b; --text:#f7f7f7; --muted:#c9c9c9; --accent:#ef4444; }
 *{box-sizing:border-box}
-html,body{height:100%}
 body{margin:0;padding:18px;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
 .wrap{max-width:1500px;margin:0 auto}
 h1{margin:0 0 6px;font-size:26px}
 h2{margin:0 0 10px;font-size:20px;color:var(--accent)}
 .meta{color:var(--muted);margin-bottom:10px}
-.card{background:var(--panel);border:1px solid #d6d7da;border-radius:12px;padding:16px;margin:0 0 18px}
+.card{background:var(--panel);border:1px solid #dadce0;border-radius:12px;padding:16px;margin:0 0 18px}
 .dark .card{border-color:#2a2d2f}
 select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:var(--bg);color:var(--text);margin-right:10px}
 .dark select{border-color:#3c4043}
-.btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:600}
+button.btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:600}
 .btn-accent{background:var(--accent);color:#fff}
 .btn-muted{background:#999;color:#fff}
 .topbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .right{margin-left:auto;display:flex;gap:8px}
 #valorTotal{background:var(--accent);color:#fff;padding:14px;border-radius:12px;text-align:center;font-size:28px;font-weight:700}
 .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-.kpi{background:var(--panel);border:1px solid #d6d7da;border-radius:10px;padding:10px 12px;min-width:180px}
+.kpi{background:var(--panel);border:1px solid #dadce0;border-radius:10px;padding:10px 12px;min-width:180px}
 .dark .kpi{border-color:#2a2d2f}
 .kpi b{display:block;font-size:18px;margin-top:4px}
-.chart{height:440px}
+.chart{height:460px}
+.scroll-y{max-height:640px;overflow-y:auto}
 .scroll-x{overflow-x:auto}
 .chart.wide{width:1700px}
-.chart.wider{width:2400px}
+.chart.wider{width:2200px}
 .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .badge{background:#e8eaed;color:#111;border-radius:20px;padding:4px 10px;font-size:12px;border:1px solid #cfd1d4}
 .dark .badge{background:#2a2d2f;color:#fff;border-color:#3a3d40}
@@ -44,7 +43,7 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 .small{font-size:12px;color:var(--muted)}
 </style>
 </head>
-<body class="">
+<body>
 <div class="wrap" id="pagina">
   <div class="topbar">
     <div>
@@ -57,9 +56,9 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
     </div>
   </div>
 
-  <div id="valorTotal">Total: R$ 0,00</div>
+  <div id="valorTotal">Total: R$ 0</div>
   <div class="kpis">
-    <div class="kpi"><div class="small">Empreendimentos</div><b id="kpiProj">–</b></div>
+    <div class="kpi"><div class="small">Projetos</div><b id="kpiProj">–</b></div>
     <div class="kpi"><div class="small">Municípios</div><b id="kpiMuni">–</b></div>
     <div class="kpi"><div class="small">Execução média</div><b id="kpiExec">–</b></div>
   </div>
@@ -90,71 +89,79 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 
   <div class="card scroll-x"><h2>Eixo</h2><div id="chartEixo" class="chart wide"></div></div>
   <div class="card scroll-x"><h2>Subeixo</h2><div id="chartSubeixo" class="chart wide"></div></div>
-  <div class="card scroll-x"><h2>Modalidade</h2><div id="chartModalidade" class="chart wider"></div></div>
-  <div class="card scroll-x"><h2>Empreendimentos</h2><div id="chartEmp" class="chart wider"></div></div>
+
+  <div class="card"><h2>Modalidade</h2><div class="scroll-y"><div id="chartModalidade" class="chart"></div></div></div>
+  <div class="card"><h2>Empreendimentos</h2><div class="scroll-y"><div id="chartEmp" class="chart"></div></div></div>
 
   <div class="small">Clique em qualquer gráfico para filtrar; clique novamente para desfazer. Use “Reset filtros” para limpar tudo.</div>
 </div>
 
 <script>
-const CSV_FILE = "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv";
-const PLOT_CONFIG = {locale:"pt-BR", responsive:true};
+const CSV_CANDIDATES = [
+  "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv",
+  "https://cdn.jsdelivr.net/gh/lucascunha1979/painel_pac@main/pac_abril_julho_agosto_v1.csv",
+  "https://raw.githubusercontent.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv"
+];
+const BRL = n => isFinite(n)? n.toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0}) : "R$ 0";
+function parseMoneyBR(s){
+  if (s==null) return 0;
+  let t = String(s).replace(/[\u00A0\s]/g,"").replace(/[Rr]\$/g,"").replace(/\./g,"").replace(/,/g,".");
+  const v = parseFloat(t); return isFinite(v)? v:0;
+}
+const parsePct = s => { if (s==null) return 0; let t=String(s).replace(/[\u00A0\s]/g,"").replace("%","").replace(",","."); const v=parseFloat(t); return isFinite(v)?v:0; };
+const wrap = (txt, len=24) => String(txt??"").replace(new RegExp(`(?![^\\n]{1,${len}}$)([^\\n]{1,${len}})\\s`,"g"),"$1<br>");
+const byUpdateOrder = v => { const x=String(v||"").toLowerCase(); if(x.includes("abr"))return 1; if(x.includes("jul"))return 2; if(x.includes("ago"))return 3; return 0; };
 
-const BRL = n => isFinite(n)
-  ? n.toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2})
-  : "R$ 0,00";
-const parseMoney = s => {
-  const str = String(s ?? "").replace(/\s/g,"").replace(/R\$/g,"").replace(/\./g,"").replace(",",".");
-  const v = parseFloat(str); return isNaN(v) ? 0 : v;
-};
-const parsePct = s => { const v = parseFloat(String(s ?? "").replace("%","").replace(",",".")); return isNaN(v) ? 0 : v; };
-const wrap = (txt, len=22) => String(txt||"").replace(new RegExp(`(?![^\\n]{1,${len}}$)([^\\n]{1,${len}})\\s`,"g"),"$1<br>");
-const byUpdateOrder = v => { const x = String(v||"").toLowerCase();
-  if (x.includes("abr")) return 1; if (x.includes("jul")) return 2; if (x.includes("ago")) return 3; return 0; };
+let RAW=[];
+let FILTERS={Atual:null, Muni:"Todos"};
+let DRILL={Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null};
 
-let RAW = [];
-let FILTERS = { Atual:null, Muni:"Todos" };
-let DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null };
+function loadCSVSequential(urls,onDone,onError){
+  if(!urls.length){ onError("Todas as URLs falharam."); return; }
+  const url=urls[0];
+  Papa.parse(url,{download:true, header:true, skipEmptyLines:true,
+    complete:(res)=>{
+      if(res && res.data && res.data.length>0){ onDone(res.data); }
+      else{ loadCSVSequential(urls.slice(1), onDone, onError); }
+    },
+    error:()=> loadCSVSequential(urls.slice(1), onDone, onError)
+  });
+}
 
-Papa.parse(CSV_FILE,{
-  download:true, header:true, skipEmptyLines:true,
-  complete: (res)=>{
-    RAW = res.data.map(r=>({
-      Atual:r["Atualização"]||r["Atualizacao"]||"",
-      Muni: r["Município"]||r["Municipio"]||"",
-      Executor: r["Tipo de Executor"]||"",
-      Estagio: r["Estágio"]||r["Estagio"]||"",
-      Classificacao: r["Classificação"]||r["Classificacao"]||"",
-      Eixo: r["Eixo"]||"",
-      Subeixo: r["Subeixo"]||"",
-      Modalidade: r["Modalidade"]||"",
-      Emp: r["Empreendimento"]||"",
-      Valor: parseMoney(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
-      ExecPct: parsePct(r["Percentual de execução do empreendimento (%)"])
-    })).filter(r=>r.Atual && r.Eixo);
-    initFilters();
-    renderAll();
-  },
-  error:(e)=>alert("Erro ao carregar CSV: "+e.message)
-});
+loadCSVSequential(CSV_CANDIDATES, (rows)=>{
+  RAW = rows.map(r=>({
+    Atual:r["Atualização"]||r["Atualizacao"]||"",
+    Muni:r["Município"]||r["Municipio"]||"",
+    Executor:r["Tipo de Executor"]||"",
+    Estagio:r["Estágio"]||r["Estagio"]||"",
+    Classificacao:r["Classificação"]||r["Classificacao"]||"",
+    Eixo:r["Eixo"]||"",
+    Subeixo:r["Subeixo"]||"",
+    Modalidade:r["Modalidade"]||"",
+    Emp:r["Empreendimento"]||"",
+    Valor:parseMoneyBR(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
+    ExecPct:parsePct(r["Percentual de execução do empreendimento (%)"])
+  })).filter(r=>r.Atual && r.Eixo);
+  initFilters(); renderAll();
+}, (e)=>alert("Erro ao carregar CSV: "+e));
 
 function initFilters(){
-  const u = [...new Set(RAW.map(d=>d.Atual))].sort((a,b)=>byUpdateOrder(a)-byUpdateOrder(b));
-  selAtual.innerHTML = u.map(v=>`<option>${v}</option>`).join("");
-  FILTERS.Atual = u[u.length-1]; selAtual.value = FILTERS.Atual;
-  selAtual.onchange = e => { FILTERS.Atual = e.target.value; renderAll(); };
+  const u=[...new Set(RAW.map(d=>d.Atual))].sort((a,b)=>byUpdateOrder(a)-byUpdateOrder(b));
+  selAtual.innerHTML=u.map(v=>`<option>${v}</option>`).join("");
+  FILTERS.Atual=u[u.length-1]; selAtual.value=FILTERS.Atual;
+  selAtual.onchange=e=>{FILTERS.Atual=e.target.value; renderAll();};
 
-  const m = [...new Set(RAW.map(d=>d.Muni))].filter(Boolean).sort();
-  m.forEach(v=> selMuni.innerHTML += `<option>${v}</option>`);
-  selMuni.onchange = e => { FILTERS.Muni = e.target.value; renderAll(); };
+  const m=[...new Set(RAW.map(d=>d.Muni))].filter(Boolean).sort();
+  m.forEach(v=> selMuni.innerHTML+=`<option>${v}</option>`);
+  selMuni.onchange=e=>{FILTERS.Muni=e.target.value; renderAll();};
 
-  document.getElementById("resetBtn").onclick = ()=>{ DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null }; renderAll(); };
-  document.getElementById("themeBtn").onclick = ()=>{ document.body.classList.toggle("dark"); };
+  resetBtn.onclick=()=>{ DRILL={Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null}; renderAll(); };
+  themeBtn.onclick=()=>{ document.body.classList.toggle("dark"); };
 }
 
 function activeRows(){
   return RAW.filter(r =>
-    r.Atual === FILTERS.Atual &&
+    r.Atual===FILTERS.Atual &&
     (FILTERS.Muni==="Todos" || r.Muni===FILTERS.Muni) &&
     (!DRILL.Executor || r.Executor===DRILL.Executor) &&
     (!DRILL.Estagio || r.Estagio===DRILL.Estagio) &&
@@ -166,114 +173,88 @@ function activeRows(){
 }
 
 function renderBadges(){
-  const b = [];
-  for (const [k,v] of Object.entries(DRILL)) if (v) b.push(`<span class="badge">${k}: ${v}<span class="x" data-k="${k}">✕</span></span>`);
-  badges.innerHTML = b.join("") || `<span class="small">Nenhum filtro aplicado.</span>`;
-  badges.querySelectorAll(".x").forEach(x=> x.onclick = (e)=>{ const k=e.target.dataset.k; DRILL[k]=null; renderAll(); });
+  const b=[]; for(const [k,v] of Object.entries(DRILL)) if(v) b.push(`<span class="badge">${k}: ${v}<span class="x" data-k="${k}">✕</span></span>`);
+  badges.innerHTML=b.join("")||`<span class="small">Nenhum filtro aplicado.</span>`;
+  badges.querySelectorAll(".x").forEach(x=> x.onclick=e=>{ const k=e.target.dataset.k; DRILL[k]=null; renderAll(); });
 }
 
 function aggWeighted(key){
-  const m = {};
+  const m={};
   activeRows().forEach(r=>{
-    const k = r[key] || "Não informado";
-    if(!m[k]) m[k]={sum:0, w:0};
-    m[k].sum += r.Valor;
-    m[k].w   += r.Valor * (r.ExecPct/100);
+    const k=r[key]||"Não informado";
+    if(!m[k]) m[k]={sum:0,w:0};
+    m[k].sum+=r.Valor;
+    m[k].w+=r.Valor*(r.ExecPct/100);
   });
-  return Object.entries(m).map(([k,o])=>({k, v:o.sum, exec: o.sum? (o.w/o.sum*100):0})).sort((a,b)=>b.v-a.v);
+  return Object.entries(m).map(([k,o])=>({k,v:o.sum,exec:o.sum?(o.w/o.sum*100):0})).sort((a,b)=>b.v-a.v);
 }
 
 function renderHierarchyAndKPIs(){
-  const f = activeRows();
-  const uniq = arr => new Set(arr).size;
-  hier.innerHTML = `
+  const f=activeRows(); const uniq=a=>new Set(a).size;
+  hier.innerHTML=`
     <div class="kpis" style="margin-top:0">
       <div class="kpi"><div class="small">Eixos</div><b>${uniq(f.map(x=>x.Eixo))}</b></div>
       <div class="kpi"><div class="small">Subeixos</div><b>${uniq(f.map(x=>x.Subeixo))}</b></div>
       <div class="kpi"><div class="small">Modalidades</div><b>${uniq(f.map(x=>x.Modalidade))}</b></div>
       <div class="kpi"><div class="small">Empreendimentos</div><b>${uniq(f.map(x=>x.Emp))}</b></div>
     </div>`;
-  const total = f.reduce((a,r)=>a+r.Valor,0);
-  valorTotal.textContent = `Total: ${BRL(total)}`;
-  kpiProj.textContent   = f.length.toLocaleString("pt-BR");
-  kpiMuni.textContent   = new Set(f.map(x=>x.Muni)).size.toLocaleString("pt-BR");
-  const execMedia = f.length ? f.reduce((a,r)=>a + (isFinite(r.ExecPct)? r.ExecPct : 0),0) / f.length : 0;
-  kpiExec.textContent   = `${execMedia.toFixed(1).replace(".",",")}%`;
+  const total=f.reduce((a,r)=>a+(isFinite(r.Valor)?r.Valor:0),0);
+  valorTotal.textContent=`Total: ${BRL(total)}`;
+  kpiProj.textContent=f.length.toLocaleString("pt-BR");
+  kpiMuni.textContent=new Set(f.map(x=>x.Muni)).size.toLocaleString("pt-BR");
+  const execMedia=f.length? f.reduce((a,r)=>a+r.ExecPct,0)/f.length:0;
+  kpiExec.textContent=`${execMedia.toFixed(1).replace(".",",")}%`;
 }
 
-function piePlot(divId, key){
-  const a = aggWeighted(key);
+function colors(){ return getComputedStyle(document.body).getPropertyValue('--accent').trim()||'#e11d2e'; }
+function fontColor(){ return getComputedStyle(document.body).getPropertyValue('--text').trim()||'#111'; }
+
+function attachClick(divId,key,horizontal){
+  const el=document.getElementById(divId);
+  el.on('plotly_click', d=>{
+    const label=horizontal? d.points[0].y : d.points[0].x;
+    const plain=String(label).replace(/<br>/g," ");
+    DRILL[key]=(DRILL[key]===plain)? null : plain;
+    renderAll();
+  });
+}
+
+function piePlot(divId,key){
+  const a=aggWeighted(key);
   Plotly.newPlot(divId,[{
-    labels:a.map(x=>wrap(x.k,20)),
-    values:a.map(x=>x.v),
+    labels:a.map(x=>wrap(x.k,22)), values:a.map(x=>x.v),
     type:"pie", hole:.25, textinfo:"label+percent",
-    hovertemplate:"%{label}<br><b>%{value:,.2f}</b><extra></extra>"
+    hovertemplate:`%{label}<br><b>%{value:,.0f}</b><extra></extra>`
   }],{
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
-    font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
-    legend:{orientation:"h"}
-  }, PLOT_CONFIG);
-
-  const el = document.getElementById(divId);
-  el.on('plotly_click', d=>{
-    const label = d.points[0].label.replace(/<br>/g," ");
-    const cur = DRILL[key];
-    DRILL[key] = (cur===label) ? null : label;
-    renderAll();
-  });
+    font:{color:fontColor()}, legend:{orientation:"h"}
+  },{responsive:true});
+  attachClick(divId,key,false);
 }
 
-function barPlot(divId, key, opts={}){
-  const a = aggWeighted(key);
-  const cfg = Object.assign({horizontal:false}, opts);
+function barPlot(divId,key,opts={}){
+  const a=aggWeighted(key);
+  const cfg=Object.assign({horizontal:false,clampHeight:true},opts);
+  const n=a.length;
+  const height=cfg.clampHeight? Math.min(1600,(cfg.horizontal? (n*20+120):460)) : 460;
+  const x=cfg.horizontal? a.map(x=>x.v) : a.map(x=>wrap(x.k,24));
+  const y=cfg.horizontal? a.map(x=>wrap(x.k,36)) : a.map(x=>x.v);
 
-  const x = cfg.horizontal ? a.map(x=>x.v) : a.map(x=>wrap(x.k,22));
-  const y = cfg.horizontal ? a.map(x=>wrap(x.k,30)) : a.map(x=>x.v);
-
-  const data = [{
-    x, y,
-    type:"bar",
-    orientation: cfg.horizontal ? "h" : "v",
-    marker:{color:getComputedStyle(document.body).getPropertyValue('--accent')},
-    customdata: a.map(x=>BRL(x.v)),
-    meta: a.map(x=>x.exec.toFixed(1).replace(".",",")),
+  Plotly.newPlot(divId,[{
+    x,y,type:"bar",orientation:(cfg.horizontal?"h":"v"),
+    marker:{color:colors()}, customdata:a.map(x=>BRL(x.v)),
+    meta:a.map(x=>x.exec.toFixed(1).replace(".",",")),
     hovertemplate: cfg.horizontal
-      ? "%{y}<br><b>%{x:,.2f}</b><br>Exec. média: %{meta}%<extra></extra>"
-      : "%{x}<br><b>%{y:,.2f}</b><br>Exec. média: %{meta}%<extra></extra>",
-    cliponaxis:false
-  }];
-
-  const layout = {
-    paper_bgcolor:"rgba(0,0,0,0)",
-    plot_bgcolor:"rgba(0,0,0,0)",
-    font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
-    margin: cfg.horizontal ? {l:450,r:120,t:20,b:50} : {l:80,r:40,t:20,b:190},
-    xaxis: {
-      automargin:true,
-      tickformat:",.2f",
-      tickprefix:"R$ ",
-      separatethousands:true
-    },
-    yaxis: {
-      automargin:true,
-      tickformat:",.2f",
-      tickprefix: cfg.horizontal ? "" : "R$ ",
-      separatethousands:true
-    },
-    uniformtext_minsize:10,
-    uniformtext_mode:"hide"
-  };
-
-  Plotly.newPlot(divId, data, layout, PLOT_CONFIG);
-
-  const el = document.getElementById(divId);
-  el.on('plotly_click', d=>{
-    const label = cfg.horizontal ? d.points[0].y : d.points[0].x;
-    const plain = String(label).replace(/<br>/g," ");
-    const cur = DRILL[key];
-    DRILL[key] = (cur===plain) ? null : plain;
-    renderAll();
-  });
+      ? "%{y}<br><b>%{customdata}</b><br>Exec. média: %{meta}%<extra></extra>"
+      : "%{x}<br><b>%{customdata}</b><br>Exec. média: %{meta}%<extra></extra>"
+  }],{
+    height:height, paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    font:{color:fontColor()},
+    margin: cfg.horizontal? {l:340,r:30,t:10,b:40} : {l:70,r:30,t:10,b:140},
+    xaxis:{automargin:true, tickangle:(cfg.horizontal?0:-30), tickformat:",.0f"},
+    yaxis:{automargin:true, tickformat:",.0f"}
+  },{responsive:true});
+  attachClick(divId,key,cfg.horizontal);
 }
 
 function renderAll(){
@@ -288,29 +269,35 @@ function renderAll(){
   barPlot("chartEmp","Emp",{horizontal:true});
 }
 
-document.getElementById("pdfBtn").onclick = async ()=>{
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF("l","pt","a4");
-  const node = document.getElementById("pagina");
+pdfBtn.onclick = async ()=>{
   try{
-    const canvas = await html2canvas(node, {scale:1.8, backgroundColor:getComputedStyle(document.body).getPropertyValue('--bg')});
-    const img = canvas.toDataURL("image/png");
-    const pw = pdf.internal.pageSize.getWidth();
-    const ph = pdf.internal.pageSize.getHeight();
-    const ratio = Math.min(pw/canvas.width, ph/canvas.height);
-    const w = canvas.width * ratio;
-    const h = canvas.height * ratio;
-    pdf.addImage(img, "PNG", (pw-w)/2, (ph-h)/2, w, h);
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("l","pt","a4");
+    const blocks=[
+      document.querySelector(".topbar").parentElement,
+      document.getElementById("valorTotal").parentElement,
+      document.getElementById("hier").parentElement,
+      document.getElementById("chartExecutor").parentElement,
+      document.getElementById("chartEstagio").parentElement,
+      document.getElementById("chartClassificacao").parentElement,
+      document.getElementById("chartEixo").parentElement,
+      document.getElementById("chartSubeixo").parentElement,
+      document.getElementById("chartModalidade").parentElement,
+      document.getElementById("chartEmp").parentElement
+    ];
+    for (let i=0;i<blocks.length;i++){
+      const node=blocks[i];
+      const canvas=await html2canvas(node,{scale:2, backgroundColor:getComputedStyle(document.body).getPropertyValue('--bg')});
+      const img=canvas.toDataURL("image/png");
+      const pw=pdf.internal.pageSize.getWidth(), ph=pdf.internal.pageSize.getHeight();
+      const ratio=Math.min(pw/canvas.width, ph/canvas.height);
+      const w=canvas.width*ratio, h=canvas.height*ratio;
+      if(i>0) pdf.addPage();
+      pdf.addImage(img,"PNG",(pw-w)/2,(ph-h)/2,w,h);
+    }
     pdf.save("Painel_PAC_RS.pdf");
-  }catch(err){
-    alert("⚠️ Falha ao gerar o PDF: " + err?.message);
-  }
+  }catch(err){ alert("⚠️ Falha ao gerar o PDF. Detalhe: "+(err?.message||err)); }
 };
-document.getElementById("themeBtn").onclick = ()=>{ document.body.classList.toggle("dark"); };
 </script>
-
-<div class="wrap" style="margin-top:10px;color:#666;font-size:12px">
-  Fonte: Novo PAC (2023–2030), Casa Civil – Governo Federal (atualização agosto de 2025).
-</div>
 </body>
 </html>
