@@ -5,17 +5,17 @@
 <title>Painel do Novo PAC – Rio Grande do Sul</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<!-- Plotly + PapaParse for the panel (unchanged) -->
+<!-- Plotly para os gráficos -->
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<!-- PapaParse para ler CSV -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-
-<!-- PDF libs: jsPDF + autoTable -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<!-- html2pdf para gerar PDF paginado (tabelas apenas) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
-:root{ --bg:#ffffff; --panel:#f4f5f7; --text:#111; --muted:#555; --accent:#e11d2e; }
-.dark { --bg:#0a0a0a; --panel:#181a1b; --text:#fff; --muted:#c9c9c9; --accent:#ef4444; }
+:root{
+  --bg:#ffffff; --panel:#f4f5f7; --text:#111; --muted:#555; --accent:#e11d2e;
+}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;padding:18px;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
@@ -24,9 +24,7 @@ h1{margin:0 0 6px;font-size:26px}
 h2{margin:0 0 10px;font-size:20px;color:var(--accent)}
 .meta{color:var(--muted);margin-bottom:10px}
 .card{background:var(--panel);border:1px solid #d6d7da;border-radius:12px;padding:16px;margin:0 0 18px}
-.dark .card{border-color:#2a2d2f}
 select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:var(--bg);color:var(--text);margin-right:10px}
-.dark select{border-color:#3c4043}
 .btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:600}
 .btn-accent{background:var(--accent);color:#fff}
 .btn-muted{background:#999;color:#fff}
@@ -35,31 +33,42 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 #valorTotal{background:var(--accent);color:#fff;padding:14px;border-radius:12px;text-align:center;font-size:28px;font-weight:700}
 .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
 .kpi{background:var(--panel);border:1px solid #d6d7da;border-radius:10px;padding:10px 12px;min-width:180px}
-.dark .kpi{border-color:#2a2d2f}
 .kpi b{display:block;font-size:18px;margin-top:4px}
-.chart{height:420px}
-.scroll-x{overflow-x:auto}
-.scroll-y{overflow-y:auto; max-height:520px;}
-.chart.wide{width:1700px}
-.chart.wider{width:2200px}
+.small{font-size:12px;color:var(--muted)}
 .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .badge{background:#e8eaed;color:#111;border-radius:20px;padding:4px 10px;font-size:12px;border:1px solid #cfd1d4}
-.dark .badge{background:#2a2d2f;color:#fff;border-color:#3a3d40}
 .badge .x{margin-left:6px;cursor:pointer}
-.small{font-size:12px;color:var(--muted)}
-#chartSubeixo, #chartModalidade, #chartEmp { min-height: 600px; }
+
+/* containers de gráfico com rolagem quando necessário */
+.chart{height:420px}
+.chart-v{height:460px; overflow-x:auto;}
+.chart-h{height:540px; overflow-y:auto;}
+.chart-wide{width:1700px}   /* para Eixo/Classificação quando houver muitas categorias */
+.chart-wider{width:2200px}  /* se estourar muito */
+
+/* TABELAS (PDF) */
+#tables{display:none} /* só aparece no PDF */
+#tables h2{color:#000;margin:16px 0 8px}
+table.report{border-collapse:collapse;width:100%;font-size:11px}
+table.report th, table.report td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}
+table.report th{background:#efefef}
+tfoot td{font-weight:700;background:#fafafa}
+.source{margin-top:10px;color:#333;font-size:11px}
+@media print{
+  body{background:#fff}
+}
 </style>
 </head>
 <body>
-<div class="wrap" id="pagina">
+<div class="wrap" id="app">
+
   <div class="topbar">
     <div>
       <h1>Painel do Novo PAC – Rio Grande do Sul</h1>
-      <div class="meta">Fonte: Novo PAC (2023–2030) – Casa Civil, Governo Federal — atualização ago/2025</div>
+      <div class="meta">Fonte: Novo PAC (2023-2030) – Casa Civil, Governo Federal — atualização: Ago/2025</div>
     </div>
     <div class="right">
-      <button id="themeBtn" class="btn btn-accent" title="Alternar tema">🌙/☀️</button>
-      <button id="pdfBtn" class="btn btn-accent" title="Baixar PDF (tabelas)">📄 PDF (tabelas)</button>
+      <button id="btnPdf" class="btn btn-accent" title="Baixar PDF com tabelas">📄 PDF (tabelas)</button>
     </div>
   </div>
 
@@ -79,7 +88,7 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
         <select id="selMuni"><option>Todos</option></select>
       </div>
       <div class="right">
-        <button id="resetBtn" class="btn btn-muted">🔄 Reset filtros</button>
+        <button id="btnReset" class="btn btn-muted">🔄 Reset filtros</button>
       </div>
     </div>
     <div class="badges" id="badges"></div>
@@ -90,52 +99,70 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
     <div id="hier"></div>
   </div>
 
-  <!-- Gráficos (mantidos) -->
-  <div class="card"><h2>Tipo de Executor</h2><div id="chartExecutor" class="chart"></div></div>
-  <div class="card"><h2>Estágio</h2><div id="chartEstagio" class="chart"></div></div>
-  <div class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart"></div></div>
-  <div class="card scroll-x"><h2>Eixo</h2><div id="chartEixo" class="chart wide"></div></div>
+  <div class="card"><h2>Tipo de Executor</h2><div id="chartExecutor" class="chart chart-v"></div></div>
+  <div class="card"><h2>Estágio</h2><div id="chartEstagio" class="chart chart-v"></div></div>
+  <div class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart chart-v"></div></div>
 
-  <div class="card scroll-y"><h2>Subeixo</h2><div id="chartSubeixo" class="chart"></div></div>
-  <div class="card scroll-y"><h2>Modalidade</h2><div id="chartModalidade" class="chart"></div></div>
-  <div class="card scroll-y"><h2>Empreendimentos</h2><div id="chartEmp" class="chart"></div></div>
+  <div class="card"><h2>Eixo</h2><div id="chartEixo" class="chart chart-v"></div></div>
+  <div class="card"><h2>Subeixo</h2><div id="chartSubeixo" class="chart chart-h"></div></div>
+  <div class="card"><h2>Modalidade</h2><div id="chartModalidade" class="chart chart-h"></div></div>
+  <div class="card"><h2>Empreendimentos</h2><div id="chartEmp" class="chart chart-h"></div></div>
 
-  <div class="small">Clique em qualquer gráfico para filtrar; clique novamente para desfazer. Use “Reset filtros” para limpar tudo.</div>
+  <div class="small">Clique em qualquer gráfico para filtrar; clique novamente para desfazer. “Reset filtros” limpa tudo.</div>
+
+  <!-- Seção oculta com TABELAS (usada para gerar o PDF) -->
+  <div id="tables"></div>
+
 </div>
 
 <script>
+// ===================== CONFIG =====================
 const CSV_FILE = "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv";
 
-const BRL = n => (isFinite(n) ? n : 0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2});
-const parseMoney = s => parseFloat(String(s||"").replace(/R\\$|\\./g,"").replace(",", "."))||0;
-const parsePct = s => parseFloat(String(s||"").replace("%","").replace(",", "."))||0;
-const wrap = (txt, len=22) => String(txt||"").replace(new RegExp(`(?![^\\n]{1,${len}}$)([^\\n]{1,${len}})\\s`,"g"),"$1<br>");
-const byUpdateOrder = v => { const x = String(v||"").toLowerCase();
-  if (x.includes("abr")) return 1;
-  if (x.includes("jul")) return 2;
-  if (x.includes("ago")) return 3;
-  return 0;
+// ===================== HELPERS =====================
+const nfBR2 = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2});
+const pct1  = v => (isFinite(v)? (v.toFixed(1).replace(".",",")) : "0,0");
+const BRL   = v => nfBR2.format(Math.round((v + Number.EPSILON)*100)/100);
+
+function parseMoneyBR(s){
+  if (s==null) return 0;
+  const t = String(s).replace(/\s|R\$/g,"").replace(/\./g,"").replace(",",".");
+  const n = parseFloat(t);
+  return isFinite(n) ? n : 0;
+}
+function parsePctBR(s){
+  if (s==null) return 0;
+  const t = String(s).replace("%","").replace(",",".");
+  const n = parseFloat(t);
+  return isFinite(n) ? n : 0;
+}
+const wrap = (txt, len=28) => String(txt||"").replace(new RegExp(`(?![^\\n]{1,${len}}$)([^\\n]{1,${len}})\\s`,"g"),"$1<br>");
+const ellips = (txt, len=40) => {
+  const s = String(txt||"");
+  return s.length>len ? s.slice(0,len-1)+"…" : s;
 };
 
+// ===================== STATE =====================
 let RAW = [];
 let FILTERS = { Atual:null, Muni:"Todos" };
 let DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null };
 
+// ===================== LOAD CSV =====================
 Papa.parse(CSV_FILE,{
   download:true, header:true, skipEmptyLines:true,
   complete: (res)=>{
     RAW = res.data.map(r=>({
-      Atual:r["Atualização"]||r["Atualizacao"]||"",
-      Muni: r["Município"]||r["Municipio"]||"",
+      Atual:  r["Atualização"]||r["Atualizacao"]||"",
+      Muni:   r["Município"]||r["Municipio"]||"",
       Executor: r["Tipo de Executor"]||"",
-      Estagio: r["Estágio"]||r["Estagio"]||"",
+      Estagio:  r["Estágio"]||r["Estagio"]||"",
       Classificacao: r["Classificação"]||r["Classificacao"]||"",
       Eixo: r["Eixo"]||"",
       Subeixo: r["Subeixo"]||"",
       Modalidade: r["Modalidade"]||"",
       Emp: r["Empreendimento"]||"",
-      Valor: parseMoney(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
-      ExecPct: parsePct(r["Percentual de execução do empreendimento (%)"])
+      Valor: parseMoneyBR(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
+      ExecPct: parsePctBR(r["Percentual de execução do empreendimento (%)"])
     })).filter(r=>r.Atual && r.Eixo);
 
     initFilters();
@@ -144,22 +171,34 @@ Papa.parse(CSV_FILE,{
   error:(e)=>alert("Erro ao carregar CSV: "+e.message)
 });
 
+// ===================== FILTERS =====================
+function byUpdateOrder(v){
+  const x = String(v||"").toLowerCase();
+  if (x.includes("abr")) return 1;
+  if (x.includes("jul")) return 2;
+  if (x.includes("ago")) return 3;
+  return 0;
+}
 function initFilters(){
   const u = [...new Set(RAW.map(d=>d.Atual))].sort((a,b)=>byUpdateOrder(a)-byUpdateOrder(b));
-  selAtual.innerHTML = u.map(v=>`<option>${v}</option>`).join("");
+  document.getElementById("selAtual").innerHTML = u.map(v=>`<option>${v}</option>`).join("");
   FILTERS.Atual = u[u.length-1];
-  selAtual.value = FILTERS.Atual;
-  selAtual.onchange = e => { FILTERS.Atual = e.target.value; renderAll(); };
+  document.getElementById("selAtual").value = FILTERS.Atual;
+  document.getElementById("selAtual").onchange = e => { FILTERS.Atual = e.target.value; renderAll(); };
 
   const m = [...new Set(RAW.map(d=>d.Muni))].filter(Boolean).sort();
-  m.forEach(v=> selMuni.innerHTML += `<option>${v}</option>`);
-  selMuni.onchange = e => { FILTERS.Muni = e.target.value; renderAll(); };
+  const selM = document.getElementById("selMuni");
+  m.forEach(v=> selM.innerHTML += `<option>${v}</option>`);
+  selM.onchange = e => { FILTERS.Muni = e.target.value; renderAll(); };
 
-  document.getElementById("resetBtn").onclick = ()=>{ DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null }; renderAll(); };
-  document.getElementById("themeBtn").onclick = ()=>{ document.body.classList.toggle("dark"); };
+  document.getElementById("btnReset").onclick = ()=>{
+    DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null };
+    renderAll();
+  };
+
+  document.getElementById("btnPdf").onclick = ()=>makePDF();
 }
-
-function activeRows(){
+function actRows(){
   return RAW.filter(r =>
     r.Atual === FILTERS.Atual &&
     (FILTERS.Muni==="Todos" || r.Muni===FILTERS.Muni) &&
@@ -171,35 +210,37 @@ function activeRows(){
     (!DRILL.Modalidade || r.Modalidade===DRILL.Modalidade)
   );
 }
-
 function renderBadges(){
   const b = [];
   for (const [k,v] of Object.entries(DRILL)) if (v) b.push(`<span class="badge">${k}: ${v}<span class="x" data-k="${k}">✕</span></span>`);
-  badges.innerHTML = b.join("") || `<span class="small">Nenhum filtro aplicado.</span>`;
-  badges.querySelectorAll(".x").forEach(x=> x.onclick = (e)=>{ const k=e.target.dataset.k; DRILL[k]=null; renderAll(); });
+  const el = document.getElementById("badges");
+  el.innerHTML = b.length? b.join("") : `<span class="small">Nenhum filtro aplicado.</span>`;
+  el.querySelectorAll(".x").forEach(x=> x.onclick = (e)=>{ const k=e.target.dataset.k; DRILL[k]=null; renderAll(); });
 }
 
-function aggWeighted(key){
+// ===================== AGG =====================
+function aggSimple(key){
   const m = {};
-  const rows = activeRows();
-  rows.forEach(r=>{
+  actRows().forEach(r=>{
     const k = r[key] || "Não informado";
-    if(!m[k]) m[k]={sum:0, w:0, n:0};
-    m[k].sum += r.Valor;
-    m[k].w   += r.Valor * (r.ExecPct/100);
-    m[k].n   += 1;
+    if(!m[k]) m[k]={sumValor:0, n:0, sumPct:0};
+    m[k].sumValor += r.Valor;
+    m[k].n += 1;
+    m[k].sumPct += r.ExecPct; // média simples!
   });
-  const totalVal = Object.values(m).reduce((a,o)=>a+o.sum,0) || 1;
   return Object.entries(m).map(([k,o])=>({
-      k, v:o.sum, exec: o.n ? (o.w/o.sum*100) : 0, n:o.n, share: (o.sum/totalVal*100)
-    }))
-    .sort((a,b)=>b.v-a.v);
+    k,
+    v:o.sumValor,
+    n:o.n,
+    exec:(o.n? (o.sumPct/o.n) : 0)
+  })).sort((a,b)=>b.v-a.v);
 }
 
+// ===================== HIER + KPIs =====================
 function renderHierarchyAndKPIs(){
-  const f = activeRows();
+  const f = actRows();
   const uniq = arr => new Set(arr).size;
-  hier.innerHTML = `
+  document.getElementById("hier").innerHTML = `
     <div class="kpis" style="margin-top:0">
       <div class="kpi"><div class="small">Eixos</div><b>${uniq(f.map(x=>x.Eixo))}</b></div>
       <div class="kpi"><div class="small">Subeixos</div><b>${uniq(f.map(x=>x.Subeixo))}</b></div>
@@ -207,139 +248,164 @@ function renderHierarchyAndKPIs(){
       <div class="kpi"><div class="small">Empreendimentos</div><b>${uniq(f.map(x=>x.Emp))}</b></div>
     </div>`;
   const total = f.reduce((a,r)=>a+r.Valor,0);
-  valorTotal.textContent = `Total: ${BRL(total)}`;
-  kpiProj.textContent   = f.length.toLocaleString("pt-BR");
-  kpiMuni.textContent   = new Set(f.map(x=>x.Muni)).size.toLocaleString("pt-BR");
-  const execMedia = f.length ? f.reduce((a,r)=>a+r.ExecPct,0)/f.length : 0;
-  kpiExec.textContent   = `${execMedia.toFixed(2).replace(".",",")}%`;
+  document.getElementById("valorTotal").textContent = `Total: ${BRL(total)}`;
+  document.getElementById("kpiProj").textContent = f.length.toLocaleString("pt-BR");
+  document.getElementById("kpiMuni").textContent = new Set(f.map(x=>x.Muni)).size.toLocaleString("pt-BR");
+  const execMedia = f.length ? f.reduce((a,r)=>a+r.ExecPct,0)/f.length : 0; // simples
+  document.getElementById("kpiExec").textContent = `${pct1(execMedia)}%`;
 }
 
+// ===================== PLOTS =====================
 function piePlot(divId, key){
-  const a = aggWeighted(key);
+  const a = aggSimple(key);
+  const labels = a.map(x=>wrap(x.k,22));
+  const hover = a.map(x=>`${x.k}<br><b>${BRL(x.v)}</b><br>Exec. média: ${pct1(x.exec)}%<br>Qtd: ${x.n.toLocaleString("pt-BR")}`);
   Plotly.newPlot(divId,[{
-    labels:a.map(x=>wrap(x.k,20)),
-    values:a.map(x=>x.v),
-    type:"pie", hole:.25, textinfo:"label+percent",
-    hovertemplate:"%{label}<br><b>"+a.map(x=>BRL(x.v)).join("|")+"<extra></extra>".split("|")[0]
+    labels, values:a.map(x=>x.v), type:"pie", hole:.25, textinfo:"label+percent",
+    hovertemplate: hover.map(h=>h+"<extra></extra>")
   }],{
-    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
-    font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
-    legend:{orientation:"h"}
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)", legend:{orientation:"h"}
   },{responsive:true});
 
   const el = document.getElementById(divId);
   el.on('plotly_click', d=>{
     const label = d.points[0].label.replace(/<br>/g," ");
-    const cur = DRILL[key];
-    DRILL[key] = (cur===label) ? null : label;
-    renderAll();
-  });
-}
-
-function barPlot(divId, key, opts={}){
-  const a = aggWeighted(key);
-  const cfg = Object.assign({horizontal:false,widthClass:"wide"}, opts);
-
-  const x = cfg.horizontal ? a.map(x=>x.v) : a.map(x=>wrap(x.k,22));
-  const y = cfg.horizontal ? a.map(x=>x.k) : a.map(x=>x.v);
-
-  const data = [{
-    x, y,
-    type:"bar",
-    orientation: cfg.horizontal ? "h" : "v",
-    marker:{color:getComputedStyle(document.body).getPropertyValue('--accent')},
-    customdata: a.map(x=>`${BRL(x.v)} • ${x.n.toLocaleString('pt-BR')} itens • exec média ${x.exec.toFixed(2).replace('.',',')}%`),
-    hovertemplate: cfg.horizontal
-      ? "%{y}<br><b>%{customdata}</b><extra></extra>"
-      : "%{x}<br><b>%{customdata}</b><extra></extra>"
-  }];
-
-  const layout = {
-    paper_bgcolor:"rgba(0,0,0,0)",
-    plot_bgcolor:"rgba(0,0,0,0)",
-    font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
-    margin: cfg.horizontal ? {l:300,r:30,t:10,b:40} : {l:60,r:30,t:10,b:160},
-    xaxis: { automargin:true, tickangle: cfg.horizontal ? 0 : -30, tickformat:",.0f" },
-    yaxis: { automargin:true, tickformat:",.0f" }
-  };
-
-  Plotly.newPlot(divId, data, layout, {responsive:true});
-
-  const el = document.getElementById(divId);
-  el.on('plotly_click', d=>{
-    const label = cfg.horizontal ? d.points[0].y : d.points[0].x;
-    const plain = String(label).replace(/<br>/g," ");
+    const plain = label;
     const cur = DRILL[key];
     DRILL[key] = (cur===plain) ? null : plain;
     renderAll();
   });
 }
 
+function barPlotVertical(divId, key){
+  const a = aggSimple(key);
+  // largura dinâmica para evitar corte
+  const w = Math.max(900, 24*a.length + 600);
+  const x = a.map(x=>ellips(x.k, 36)); // eixo com reticências
+  const data = [{
+    x, y:a.map(x=>x.v), type:"bar",
+    marker:{color:"#e11d2e"},
+    customdata:a.map(x=>`${x.k}`),
+    hovertemplate:"%{customdata}<br><b>%{y:,.2f}</b><br>Exec. média: %{meta}%<br>Qtd: %{text}<extra></extra>",
+    text:a.map(x=>x.n.toLocaleString("pt-BR")),
+    meta:a.map(x=>pct1(x.exec))
+  }];
+  const layout = {
+    width: w, height: 420, bargap:0.25,
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    margin:{l:90,r:20,t:10,b:150},
+    xaxis:{tickangle:-30, automargin:true},
+    yaxis:{tickformat:",.2f"}
+  };
+  Plotly.newPlot(divId, data, layout, {responsive:true});
+  document.getElementById(divId).on('plotly_click', d=>{
+    const label = a[d.points[0].pointIndex].k;
+    const cur = DRILL[key];
+    DRILL[key] = (cur===label) ? null : label;
+    renderAll();
+  });
+}
+
+function barPlotHorizontal(divId, key){
+  const a = aggSimple(key);
+  // altura dinâmica: 22px por categoria (mín 540 / máx 1400 com rolagem do container)
+  const h = Math.min(1400, Math.max(540, 22*a.length+100));
+  const data = [{
+    x:a.map(x=>x.v),
+    y:a.map(x=>ellips(x.k, 70)),
+    type:"bar", orientation:"h", marker:{color:"#e11d2e"},
+    customdata:a.map(x=>x.k),
+    meta:a.map(x=>pct1(x.exec)),
+    text:a.map(x=>x.n.toLocaleString("pt-BR")),
+    hovertemplate:"%{customdata}<br><b>%{x:,.2f}</b><br>Exec. média: %{meta}%<br>Qtd: %{text}<extra></extra>"
+  }];
+  const layout = {
+    height: h, bargap:0.25,
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    margin:{l:310,r:20,t:10,b:40},
+    xaxis:{tickformat:",.2f"}, yaxis:{automargin:true}
+  };
+  Plotly.newPlot(divId, data, layout, {responsive:true});
+  document.getElementById(divId).on('plotly_click', d=>{
+    const idx = d.points[0].pointIndex;
+    const label = a[idx].k;
+    const cur = DRILL[key];
+    DRILL[key] = (cur===label) ? null : label;
+    renderAll();
+  });
+}
+
+// ===================== RENDER =====================
 function renderAll(){
   renderHierarchyAndKPIs();
   renderBadges();
   piePlot("chartExecutor","Executor");
   piePlot("chartEstagio","Estagio");
-  barPlot("chartClassificacao","Classificacao");
-  barPlot("chartEixo","Eixo");
-  barPlot("chartSubeixo","Subeixo",{horizontal:true});
-  barPlot("chartModalidade","Modalidade",{horizontal:true});
-  barPlot("chartEmp","Emp",{horizontal:true});
+  barPlotVertical("chartClassificacao","Classificacao");
+  barPlotVertical("chartEixo","Eixo");
+  barPlotHorizontal("chartSubeixo","Subeixo");
+  barPlotHorizontal("chartModalidade","Modalidade");
+  barPlotHorizontal("chartEmp","Emp");
+  buildTablesForPDF(); // mantém as tabelas atualizadas para o PDF
 }
 
-function toTableRows(key){
-  const a = aggWeighted(key);
-  const totalValor = a.reduce((acc,r)=>acc+r.v,0) || 1;
-  return a.map(r => [
-    r.k,
-    r.n.toLocaleString('pt-BR'),
-    BRL(r.v),
-    (r.exec || 0).toFixed(2).replace('.',',') + '%',
-    (r.v/totalValor*100).toFixed(2).replace('.',',') + '%'
-  ]);
+// ===================== PDF (TABELAS APENAS) =====================
+function buildOneTable(rows, key){
+  const totalValor = rows.reduce((a,r)=>a+r.Valor,0);
+  const map = {};
+  rows.forEach(r=>{
+    const k = r[key] || "Não informado";
+    if(!map[k]) map[k]={n:0, sumVal:0, sumPct:0};
+    map[k].n += 1;
+    map[k].sumVal += r.Valor;
+    map[k].sumPct += r.ExecPct;
+  });
+  const arr = Object.entries(map).map(([k,o])=>{
+    const exec = o.n? (o.sumPct/o.n) : 0; // média simples
+    const pctVal = totalValor>0 ? (o.sumVal/totalValor*100) : 0;
+    return {categoria:k, qtd:o.n, exec, valor:o.sumVal, share:pctVal};
+  }).sort((a,b)=>b.valor-a.valor);
+
+  let html = `<h2>${key}</h2><table class="report"><thead>
+    <tr><th>Categoria</th><th>Quantidade</th><th>Execução média (%)</th><th>Soma do valor (R$)</th><th>% do total (valor)</th></tr>
+  </thead><tbody>`;
+  arr.forEach(r=>{
+    html += `<tr>
+      <td>${r.categoria}</td>
+      <td>${r.qtd.toLocaleString("pt-BR")}</td>
+      <td>${pct1(r.exec)}%</td>
+      <td>${BRL(r.valor)}</td>
+      <td>${pct1(r.share)}%</td>
+    </tr>`;
+  });
+  html += `</tbody><tfoot><tr>
+    <td><b>TOTAL</b></td>
+    <td><b>${rows.length.toLocaleString("pt-BR")}</b></td>
+    <td><b>${pct1(rows.reduce((a,r)=>a+r.ExecPct,0)/(rows.length||1))}%</b></td>
+    <td><b>${BRL(totalValor)}</b></td>
+    <td><b>100,0%</b></td>
+  </tr></tfoot></table>`;
+  return html;
 }
-
-function exportPDFTables(){
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF("l","pt","a4");
-
-  const titulo = (t) => {
-    pdf.setFontSize(14);
-    pdf.setTextColor(20);
-    pdf.text(t, 40, pdf.lastAutoTable ? pdf.lastAutoTable.finalY + 26 : 40);
+function buildTablesForPDF(){
+  const f = actRows();
+  const keys = ["Executor","Estagio","Classificacao","Eixo","Subeixo","Modalidade"];
+  const tables = keys.map(k=>buildOneTable(f,k)).join("");
+  const fonte = `<div class="source">Fonte: Novo PAC (2023-2030) – Casa Civil, Governo Federal (atualização: Ago/2025)</div>`;
+  document.getElementById("tables").innerHTML = tables + fonte;
+}
+function makePDF(){
+  const opt = {
+    margin:       [10,10,10,10],
+    filename:     'relatorio_pac_tabelas.pdf',
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true, background: '#ffffff' },
+    jsPDF:        { unit: 'pt', format: 'a4', orientation: 'landscape' }
   };
-
-  const addTable = (tituloTexto, key) => {
-    titulo(tituloTexto);
-    const head = [["Categoria", "Quantidade", "Valor (R$)", "Exec. média (%)", "% do Valor"]];
-    const body = toTableRows(key);
-    pdf.autoTable({
-      startY: pdf.lastAutoTable ? pdf.lastAutoTable.finalY + 30 : 50,
-      head, body,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [225,29,46] },
-      columnStyles: { 0:{cellWidth: 220}, 1:{cellWidth: 80}, 2:{cellWidth: 120}, 3:{cellWidth: 90}, 4:{cellWidth: 80} },
-      margin: { left: 30, right: 30 },
-      theme: 'striped',
-      didDrawPage: (data) => {
-        pdf.setFontSize(10);
-        pdf.text("Fonte: Novo PAC (2023–2030), Casa Civil – Governo Federal. Atualização: ago/2025.", 30, pdf.internal.pageSize.getHeight()-20);
-      }
-    });
-  };
-
-  addTable("Tipo de Executor","Executor");
-  addTable("Estágio","Estagio");
-  addTable("Classificação","Classificacao");
-  addTable("Eixo","Eixo");
-  addTable("Subeixo","Subeixo");
-  addTable("Modalidade","Modalidade");
-  addTable("Empreendimentos","Emp");
-
-  pdf.save("Painel_PAC_RS_Tabelas.pdf");
+  const node = document.getElementById('tables');
+  // Gera apenas as tabelas (estão ocultas na tela)
+  html2pdf().set(opt).from(node).save();
 }
-
-document.getElementById("pdfBtn").onclick = exportPDFTables;
 </script>
 </body>
 </html>
