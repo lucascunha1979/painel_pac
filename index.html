@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Painel do Novo PAC – Rio Grande do Sul</title>
+<title>Painel do Novo PAC – RS</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -29,55 +30,40 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 .right{margin-left:auto;display:flex;gap:8px}
 #valorTotal{background:var(--accent);color:#fff;padding:14px;border-radius:12px;text-align:center;font-size:28px;font-weight:700}
 .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-.kpi{background:var(--panel);border:1px solid #d6d7da;border-radius:10px;padding:10px 12px;min-width:190px}
+.kpi{background:var(--panel);border:1px solid #d6d7da;border-radius:10px;padding:10px 12px;min-width:180px}
 .dark .kpi{border-color:#2a2d2f}
 .kpi b{display:block;font-size:18px;margin-top:4px}
-.chart{height:430px}
+.chart{height:420px}
 .scroll-x{overflow-x:auto}
-.scroll-y{max-height:520px; overflow-y:auto}
-.chart.wide{width:1700px}
-.chart.wider{width:2200px}
 .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .badge{background:#e8eaed;color:#111;border-radius:20px;padding:4px 10px;font-size:12px;border:1px solid #cfd1d4}
 .dark .badge{background:#2a2d2f;color:#fff;border-color:#3a3d40}
 .badge .x{margin-left:6px;cursor:pointer}
 .small{font-size:12px;color:var(--muted)}
-.trunc {max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-/* relatório (tabelas) inicialmente fora de tela para html2canvas */
-#reportRoot{
-  position:fixed; left:-10000px; top:0; width:1200px;
-  background:#fff; color:#000; padding:0; margin:0; visibility:hidden; display:block;
-}
-.report-section{ padding:16px; page-break-after:always; }
-.report-title{ font-size:22px; font-weight:700; margin:0 0 8px; }
-.report-meta{ color:#444; font-size:12px; margin-bottom:10px; }
-.report-table{ width:100%; border-collapse:collapse; font-size:12px; }
-.report-table th, .report-table td{ border:1px solid #999; padding:6px 8px; text-align:left; }
-.report-table th{ background:#f0f0f0; }
-.report-footer{ font-size:11px; color:#444; margin-top:6px; }
+.chart-container{max-height:720px; overflow-y:auto;}
 </style>
 </head>
 <body class="">
 <div class="wrap" id="pagina">
-  <div class="topbar pdf-section">
+  <div class="topbar">
     <div>
       <h1>Painel do Novo PAC – Rio Grande do Sul</h1>
       <div class="meta">Fonte: Novo PAC – Casa Civil – Governo Federal — Atualização Agosto/2025</div>
     </div>
     <div class="right">
       <button id="themeBtn" class="btn btn-accent" title="Alternar tema">🌙/☀️</button>
-      <button id="pdfBtn" class="btn btn-accent" title="Baixar PDF (Tabelas)">📄 PDF</button>
+      <button id="pdfBtn" class="btn btn-accent" title="Baixar PDF">📄 PDF</button>
     </div>
   </div>
 
-  <div id="valorTotal" class="pdf-section">Total: R$ 0,00</div>
-  <div class="kpis pdf-section">
-    <!-- Removido o KPI “Empreendimentos” como combinado -->
+  <div id="valorTotal">Total: R$ 0,00</div>
+  <div class="kpis">
+    <div class="kpi"><div class="small">Empreendimentos</div><b id="kpiProj">–</b></div>
     <div class="kpi"><div class="small">Municípios</div><b id="kpiMuni">–</b></div>
     <div class="kpi"><div class="small">Execução média</div><b id="kpiExec">–</b></div>
   </div>
 
-  <div class="card pdf-section">
+  <div class="card">
     <div class="topbar">
       <div>
         <b>Atualização:</b>
@@ -92,80 +78,63 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
     <div class="badges" id="badges"></div>
   </div>
 
-  <div class="card pdf-section">
+  <div class="card">
     <h2>Estrutura Hierárquica</h2>
     <div id="hier"></div>
   </div>
 
-  <!-- GRÁFICOS (inalterados) -->
-  <div class="card pdf-section"><h2>Tipo de Executor</h2><div id="chartExecutor" class="chart"></div></div>
-  <div class="card pdf-section"><h2>Estágio</h2><div id="chartEstagio" class="chart"></div></div>
-  <div class="card pdf-section"><h2>Classificação</h2><div id="chartClassificacao" class="chart"></div></div>
+  <div class="card"><h2>Tipo de Executor</h2><div id="chartExecutor" class="chart"></div></div>
+  <div class="card"><h2>Estágio</h2><div id="chartEstagio" class="chart"></div></div>
+  <div class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart"></div></div>
 
-  <div class="card pdf-section scroll-x"><h2>Eixo</h2><div id="chartEixo" class="chart wide"></div></div>
-  <div class="card pdf-section scroll-y"><h2>Subeixo</h2><div id="chartSubeixo" class="chart"></div></div>
-  <div class="card pdf-section scroll-y"><h2>Modalidade</h2><div id="chartModalidade" class="chart"></div></div>
-  <div class="card pdf-section scroll-y"><h2>Empreendimentos</h2><div id="chartEmp" class="chart"></div></div>
+  <div class="card"><h2>Eixo</h2><div id="chartEixo" class="chart"></div></div>
+  <div class="card"><h2>Subeixo</h2><div class="chart-container"><div id="chartSubeixo" class="chart"></div></div></div>
+  <div class="card"><h2>Modalidade</h2><div class="chart-container"><div id="chartModalidade" class="chart"></div></div></div>
+  <div class="card"><h2>Empreendimentos</h2><div class="chart-container"><div id="chartEmp" class="chart"></div></div></div>
 
   <div class="small">Clique em qualquer gráfico para filtrar; clique novamente para desfazer. Use “Reset filtros” para limpar tudo.</div>
 </div>
 
-<!-- CONTEÚDO DO RELATÓRIO (apenas tabelas, gerado dinamicamente) -->
-<div id="reportRoot"></div>
-
 <script>
-// ======= CONFIG =======
-const CSV_CANDIDATES = [
-  "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv",
-  "https://cdn.jsdelivr.net/gh/lucascunha1979/painel_pac@main/pac_abril_julho_agosto_v1.csv",
-  "https://raw.githubusercontent.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv"
-];
+const CSV_FILE = "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv";
 
-// ======= HELPERS =======
-const BRL2 = n => isFinite(n) ? n.toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2}) : "R$ 0,00";
+const BRL = n => isFinite(n) ? n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}) : "R$ 0,00";
 const parseMoney = s => parseFloat(String(s||"").replace(/R\$|\s|\./g,"").replace(",", "."))||0;
-const parsePct   = s => { const v = parseFloat(String(s||"").replace("%","").replace(",", ".")); return isFinite(v)?v:NaN; };
-const wrap = (txt, len=28) => String(txt||"").length>len ? String(txt).slice(0,len-1)+"…" : String(txt||"");
+const parsePct = s => parseFloat(String(s||"").replace("%","").replace(",", "."))||0;
+function ellipsis(txt,max=38){const s=String(txt||""); return s.length>max? s.slice(0,max-1)+"…": s;}
 const byUpdateOrder = v => { const x = String(v||"").toLowerCase();
-  if (x.includes("abr")) return 1; if (x.includes("jul")) return 2; if (x.includes("ago")) return 3; return 0;
+  if (x.includes("abr")) return 1;
+  if (x.includes("jul")) return 2;
+  if (x.includes("ago")) return 3;
+  return 0;
 };
 
-// ======= STATE =======
 let RAW = [];
 let FILTERS = { Atual:null, Muni:"Todos" };
 let DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null };
 
-// ======= LOAD CSV =======
-function loadCSV(candidates){
-  if(!candidates.length){ alert("Falha ao carregar o CSV."); return; }
-  Papa.parse(candidates[0],{
-    download:true, header:true, skipEmptyLines:true,
-    complete: (res)=>{
-      if(res && res.data && res.data.length){
-        RAW = res.data.map(r=>({
-          Atual:r["Atualização"]||r["Atualizacao"]||"",
-          Muni: r["Município"]||r["Municipio"]||"",
-          Executor: r["Tipo de Executor"]||"",
-          Estagio: r["Estágio"]||r["Estagio"]||"",
-          Classificacao: r["Classificação"]||r["Classificacao"]||"",
-          Eixo: r["Eixo"]||"",
-          Subeixo: r["Subeixo"]||"",
-          Modalidade: r["Modalidade"]||"",
-          Emp: r["Empreendimento"]||"",
-          Valor: parseMoney(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
-          ExecPct: parsePct(r["Percentual de execução do empreendimento (%)"])
-        })).filter(r=>r.Atual && r.Eixo);
-        initFilters(); renderAll();
-      }else{
-        loadCSV(candidates.slice(1));
-      }
-    },
-    error: ()=> loadCSV(candidates.slice(1))
-  });
-}
-loadCSV(CSV_CANDIDATES);
+Papa.parse(CSV_FILE,{
+  download:true, header:true, skipEmptyLines:true,
+  complete: (res)=>{
+    RAW = res.data.map(r=>({
+      Atual:r["Atualização"]||r["Atualizacao"]||"",
+      Muni: r["Município"]||r["Municipio"]||"",
+      Executor: r["Tipo de Executor"]||"",
+      Estagio: r["Estágio"]||r["Estagio"]||"",
+      Classificacao: r["Classificação"]||r["Classificacao"]||"",
+      Eixo: r["Eixo"]||"",
+      Subeixo: r["Subeixo"]||"",
+      Modalidade: r["Modalidade"]||"",
+      Emp: r["Empreendimento"]||"",
+      Valor: parseMoney(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
+      ExecPct: parsePct(r["Percentual de execução do empreendimento (%)"])
+    })).filter(r=>r.Atual && r.Eixo);
+    initFilters();
+    renderAll();
+  },
+  error:(e)=>alert("Erro ao carregar CSV: "+e.message)
+});
 
-// ======= FILTERS =======
 function initFilters(){
   const u = [...new Set(RAW.map(d=>d.Atual))].sort((a,b)=>byUpdateOrder(a)-byUpdateOrder(b));
   selAtual.innerHTML = u.map(v=>`<option>${v}</option>`).join("");
@@ -201,20 +170,17 @@ function renderBadges(){
   badges.querySelectorAll(".x").forEach(x=> x.onclick = (e)=>{ const k=e.target.dataset.k; DRILL[k]=null; renderAll(); });
 }
 
-// ======= AGG =======
 function aggWeighted(key){
   const m = {};
   activeRows().forEach(r=>{
     const k = r[key] || "Não informado";
     if(!m[k]) m[k]={sum:0, w:0};
-    m[k].sum += (isFinite(r.Valor)?r.Valor:0);
-    const e = isFinite(r.ExecPct)? r.ExecPct : 0;
-    m[k].w   += r.Valor * (e/100);
+    m[k].sum += r.Valor;
+    m[k].w   += r.Valor * (r.ExecPct/100);
   });
   return Object.entries(m).map(([k,o])=>({k, v:o.sum, exec: o.sum? (o.w/o.sum*100):0})).sort((a,b)=>b.v-a.v);
 }
 
-// ======= HIER & KPIs =======
 function renderHierarchyAndKPIs(){
   const f = activeRows();
   const uniq = arr => new Set(arr).size;
@@ -225,216 +191,112 @@ function renderHierarchyAndKPIs(){
       <div class="kpi"><div class="small">Modalidades</div><b>${uniq(f.map(x=>x.Modalidade))}</b></div>
       <div class="kpi"><div class="small">Empreendimentos</div><b>${uniq(f.map(x=>x.Emp))}</b></div>
     </div>`;
-  const total = f.reduce((a,r)=>a+(isFinite(r.Valor)?r.Valor:0),0);
-  valorTotal.textContent = `Total: ${BRL2(total)}`;
-
-  // KPIs restantes
-  kpiMuni.textContent = new Set(f.map(x=>x.Muni)).size.toLocaleString("pt-BR");
-  const execVals = f.map(x=>x.ExecPct).filter(v=>isFinite(v));
-  const execMedia = execVals.length ? execVals.reduce((a,b)=>a+b,0)/execVals.length : 0;
-  kpiExec.textContent = `${execMedia.toFixed(2).replace(".",",")}%`;
+  const total = f.reduce((a,r)=>a+r.Valor,0);
+  valorTotal.textContent = `Total: ${BRL(total)}`;
+  kpiProj.textContent   = f.length.toLocaleString("pt-BR");
+  kpiMuni.textContent   = new Set(f.map(x=>x.Muni)).size.toLocaleString("pt-BR");
+  const execMedia = f.length ? f.reduce((a,r)=>a+r.ExecPct,0)/f.length : 0;
+  kpiExec.textContent   = `${execMedia.toFixed(2).replace(".",",")}%`;
 }
 
-// ======= GRÁFICOS (inalterados) =======
 function piePlot(divId, key){
   const a = aggWeighted(key);
-  const labelsFull = a.map(x=>x.k);
-  const labelsShort = a.map(x=>wrap(x.k,24));
-  Plotly.react(divId,[{
-    labels: labelsShort, values: a.map(x=>x.v), type:"pie", hole:.25, textinfo:"label+percent",
-    hovertext: labelsFull.map((l,i)=>`${l}<br><b>${BRL2(a[i].v)}</b><br>Exec. média: ${a[i].exec.toFixed(2).replace(".",",")}%`),
-    hoverinfo:"text"
+  Plotly.newPlot(divId,[{
+    labels:a.map(x=>ellipsis(x.k,28)),
+    values:a.map(x=>x.v),
+    type:"pie", hole:.25, textinfo:"label+percent",
+    hovertemplate:"%{label}<br><b>%{value:,.2f}</b><extra></extra>"
   }],{
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
-    font:{color:getComputedStyle(document.body).getPropertyValue('--text')}, legend:{orientation:"h"}
+    font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
+    legend:{orientation:"h"}
   },{responsive:true});
-  document.getElementById(divId).on('plotly_click', d=>{
-    const label = labelsFull[d.points[0].pointNumber];
-    const cur = DRILL[key]; DRILL[key] = (cur===label) ? null : label; renderAll();
-  });
-}
-function barPlotVertical(divId, key){
-  const a = aggWeighted(key);
-  const short = a.map(x=>wrap(x.k,26)); const full = a.map(x=>x.k);
-  Plotly.react(divId, [{
-    x: short, y: a.map(x=>x.v), type:"bar",
-    marker:{color:getComputedStyle(document.body).getPropertyValue('--accent')},
-    customdata: full.map((t,i)=>[t, BRL2(a[i].v), a[i].exec.toFixed(2).replace(".",",")]),
-    hovertemplate: "%{customdata[0]}<br><b>%{customdata[1]}</b><br>Exec. média: %{customdata[2]}%<extra></extra>"
-  }], {
-    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
-    font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
-    margin:{l:60,r:30,t:10,b:140}, yaxis:{tickformat:",.2f"}, xaxis:{automargin:true, tickangle:-30}
-  }, {responsive:true});
-  document.getElementById(divId).on('plotly_click', d=>{
-    const label = full[d.points[0].pointNumber]; const cur = DRILL[key];
-    DRILL[key] = (cur===label) ? null : label; renderAll();
-  });
-}
-function barPlotHorizontal(divId, key){
-  const a = aggWeighted(key);
-  const h = Math.max(430, Math.min(24*a.length + 80, 1200));
-  document.getElementById(divId).style.height = h + "px";
-  const short = a.map(x=>wrap(x.k,40)); const full = a.map(x=>x.k);
-  Plotly.react(divId, [{
-    x: a.map(x=>x.v), y: short, type:"bar", orientation:"h",
-    marker:{color:getComputedStyle(document.body).getPropertyValue('--accent')},
-    customdata: full.map((t,i)=>[t, BRL2(a[i].v), a[i].exec.toFixed(2).replace(".",",")]),
-    hovertemplate: "%{customdata[0]}<br><b>%{customdata[1]}</b><br>Exec. média: %{customdata[2]}%<extra></extra>"
-  }], {
-    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
-    font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
-    margin:{l:300,r:30,t:10,b:40}, xaxis:{tickformat:",.2f"}, yaxis:{automargin:true}
-  }, {responsive:true});
-  document.getElementById(divId).on('plotly_click', d=>{
-    const label = full[d.points[0].pointNumber]; const cur = DRILL[key];
-    DRILL[key] = (cur===label) ? null : label; renderAll();
+  const el = document.getElementById(divId);
+  el.on('plotly_click', d=>{
+    const label = d.points[0].label.replace(/…$/,''); // plain
+    const cur = DRILL[key];
+    DRILL[key] = (cur===label) ? null : label;
+    renderAll();
   });
 }
 
-// ======= RENDER ALL =======
+function barPlot(divId, key, opts={}){
+  const a = aggWeighted(key);
+  const cfg = Object.assign({horizontal:false}, opts);
+
+  const fullLabels = a.map(x=>x.k);
+  const shortLabels = fullLabels.map(s=>ellipsis(s, 44));
+
+  const x = cfg.horizontal ? a.map(x=>x.v) : shortLabels;
+  const y = cfg.horizontal ? shortLabels : a.map(x=>x.v);
+
+  const n = a.length;
+  const height = cfg.horizontal ? Math.min(3000, 160 + n * 26) : 540;
+  const maxLen = Math.max(...fullLabels.map(s=>s.length));
+  const leftMargin = cfg.horizontal ? Math.min(720, 140 + maxLen * 6) : 80;
+
+  Plotly.newPlot(divId, [{
+    x, y,
+    type:"bar",
+    orientation: cfg.horizontal ? "h" : "v",
+    marker:{color:getComputedStyle(document.body).getPropertyValue('--accent')},
+    customdata: fullLabels.map((lbl,i)=>[lbl, a[i].v, a[i].exec]),
+    hovertemplate: cfg.horizontal
+      ? "%{customdata[0]}<br><b>%{customdata[1]:,.2f}</b><br>Exec. média: %{customdata[2]:.2f}%<extra></extra>"
+      : "%{customdata[0]}<br><b>%{y:,.2f}</b><extra></extra>"
+  }], {
+    paper_bgcolor:"rgba(0,0,0,0)",
+    plot_bgcolor:"rgba(0,0,0,0)",
+    font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
+    height: height,
+    margin: cfg.horizontal ? {l:leftMargin,r:30,t:10,b:40} : {l:80,r:30,t:10,b:140},
+    xaxis: { automargin:true, tickangle: cfg.horizontal ? 0 : -30, tickformat: cfg.horizontal ? ",.0f" : null },
+    yaxis: { automargin:true, tickformat: cfg.horizontal ? null : ",.0f" }
+  }, {responsive:true});
+
+  const el = document.getElementById(divId);
+  el.on('plotly_click', d=>{
+    const idx = d.points[0].pointIndex;
+    const label = fullLabels[idx];
+    const cur = DRILL[key];
+    DRILL[key] = (cur===label) ? null : label;
+    renderAll();
+  });
+}
+
 function renderAll(){
   renderHierarchyAndKPIs();
   renderBadges();
   piePlot("chartExecutor","Executor");
   piePlot("chartEstagio","Estagio");
-  barPlotVertical("chartClassificacao","Classificacao");
-  barPlotVertical("chartEixo","Eixo");
-  barPlotHorizontal("chartSubeixo","Subeixo");
-  barPlotHorizontal("chartModalidade","Modalidade");
-  barPlotHorizontal("chartEmp","Emp");
+  barPlot("chartClassificacao","Classificacao");
+  barPlot("chartEixo","Eixo");
+  barPlot("chartSubeixo","Subeixo",{horizontal:true});
+  barPlot("chartModalidade","Modalidade",{horizontal:true});
+  barPlot("chartEmp","Emp",{horizontal:true});
 }
 
-// ======= RELATÓRIO EM TABELAS =======
-const TABLE_ORDER = [
-  ["Executor", "Tipo de Executor"],
-  ["Estagio", "Estágio"],
-  ["Classificacao", "Classificação"],
-  ["Eixo", "Eixo"],
-  ["Subeixo", "Subeixo"],
-  ["Modalidade", "Modalidade"],
-  ["Emp", "Empreendimento"]
-];
-
-function buildGroupStats(key){
-  // soma de Valor e média simples de ExecPct por categoria
-  const m = {};
-  activeRows().forEach(r=>{
-    const k = r[key] || "Não informado";
-    if(!m[k]) m[k]={sum:0, execVals:[]};
-    m[k].sum += (isFinite(r.Valor)?r.Valor:0);
-    if(isFinite(r.ExecPct)) m[k].execVals.push(r.ExecPct);
-  });
-  const rows = Object.entries(m).map(([k,o])=>{
-    const mean = o.execVals.length ? (o.execVals.reduce((a,b)=>a+b,0)/o.execVals.length) : 0;
-    return {cat:k, val:o.sum, exec:mean};
-  }).sort((a,b)=>b.val-a.val);
-  const total = rows.reduce((acc,r)=>acc+r.val,0);
-  const execAll = [];
-  activeRows().forEach(r=>{ if(isFinite(r.ExecPct)) execAll.push(r.ExecPct); });
-  const execMediaGlobal = execAll.length ? (execAll.reduce((a,b)=>a+b,0)/execAll.length) : 0;
-  return {rows, total, execMediaGlobal};
-}
-
-function buildReportHTML(){
-  const f = activeRows();
-  const total = f.reduce((a,r)=>a+(isFinite(r.Valor)?r.Valor:0),0);
-  const uniq = arr => new Set(arr).size;
-  const execVals = f.map(x=>x.ExecPct).filter(v=>isFinite(v));
-  const execMedia = execVals.length ? execVals.reduce((a,b)=>a+b,0)/execVals.length : 0;
-
-  let html = "";
-  // CAPA
-  html += `<section class="report-section">
-    <div class="report-title">Painel do Novo PAC – RS (Relatório em tabelas)</div>
-    <div class="report-meta">Atualização: <b>${FILTERS.Atual}</b> &nbsp;|&nbsp; Município: <b>${FILTERS.Muni}</b></div>
-    <table class="report-table">
-      <tr><th>Total (R$)</th><th>Municípios</th><th>Execução média (%)</th></tr>
-      <tr><td>${BRL2(total)}</td><td>${uniq(f.map(x=>x.Muni))}</td><td>${execMedia.toFixed(2).replace(".",",")}%</td></tr>
-    </table>
-    <div class="report-footer">Fonte: Novo PAC (2023-2030) — Casa Civil – Governo Federal (atualização agosto de 2025)</div>
-  </section>`;
-
-  // TABELAS POR CATEGORIA
-  TABLE_ORDER.forEach(([key,label])=>{
-    const g = buildGroupStats(key);
-    const header = `<tr><th>${label}</th><th>Soma Valor (R$)</th><th>Execução média (%)</th></tr>`;
-    const body = g.rows.map(r=>`<tr><td>${r.cat}</td><td>${BRL2(r.val)}</td><td>${r.exec.toFixed(2).replace(".",",")}%</td></tr>`).join("");
-    const totalRow = `<tr><th>Total</th><th>${BRL2(g.total)}</th><th>${g.execMediaGlobal.toFixed(2).replace(".",",")}%</th></tr>`;
-    html += `<section class="report-section">
-      <div class="report-title">${label}</div>
-      <table class="report-table">${header}${body}${totalRow}</table>
-      <div class="report-footer">Fonte: Novo PAC (2023-2030) — Casa Civil – Governo Federal (atualização agosto de 2025)</div>
-    </section>`;
-  });
-
-  return html;
-}
-
-// ======= PDF (tabelas; A4 paisagem; fix para coords inválidas) =======
+// PDF multipágina: cada .card vira uma página
 document.getElementById("pdfBtn").onclick = async ()=>{
-  try{
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF("l","pt","a4");
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF("l","pt","a4");
+  const cards = Array.from(document.querySelectorAll(".card"));
+  let first = true;
 
-    const reportRoot = document.getElementById("reportRoot");
-    // garantir visibilidade para renderizar com dimensões válidas
-    const prevStyle = {
-      position: reportRoot.style.position,
-      left: reportRoot.style.left,
-      top: reportRoot.style.top,
-      width: reportRoot.style.width,
-      visibility: reportRoot.style.visibility,
-      display: reportRoot.style.display
-    };
-    reportRoot.style.position = "fixed";
-    reportRoot.style.left = "-10000px";
-    reportRoot.style.top = "0";
-    reportRoot.style.width = "1200px";
-    reportRoot.style.visibility = "visible";
-    reportRoot.style.display = "block";
-
-    reportRoot.innerHTML = buildReportHTML();
-
-    const sections = Array.from(reportRoot.querySelectorAll(".report-section"));
-    for (let i=0;i<sections.length;i++){
-      const node = sections[i];
-      const canvas = await html2canvas(node, {scale:2, backgroundColor:"#ffffff"});
-      const cw = Math.max(1, canvas.width);
-      const ch = Math.max(1, canvas.height);
-      const img = canvas.toDataURL("image/png");
-
-      const pw = pdf.internal.pageSize.getWidth();
-      const ph = pdf.internal.pageSize.getHeight();
-      const ratio = Math.max(0.0001, Math.min(pw/cw, ph/ch)); // evita NaN/0
-      const w = cw * ratio;
-      const h = ch * ratio;
-      if(i>0) pdf.addPage(); // mesma orientação do doc
-      pdf.addImage(img, "PNG", (pw-w)/2, (ph-h)/2, w, h);
-    }
-
-    // restaura estilo e limpa
-    reportRoot.innerHTML = "";
-    Object.assign(reportRoot.style, prevStyle);
-
-    pdf.save("Painel_PAC_RS_tabelas.pdf");
-  }catch(e){
-    alert("⚠️ Falha ao gerar o PDF. Detalhe: "+e.message);
-  }
-};
-
-// ======= RENDER =======
-function renderAll(){
-  renderHierarchyAndKPIs();
-  renderBadges();
-  piePlot("chartExecutor","Executor");
-  piePlot("chartEstagio","Estagio");
-  barPlotVertical("chartClassificacao","Classificacao");
-  barPlotVertical("chartEixo","Eixo");
-  barPlotHorizontal("chartSubeixo","Subeixo");
-  barPlotHorizontal("chartModalidade","Modalidade");
-  barPlotHorizontal("chartEmp","Emp");
+for (const card of cards){
+  const canvas = await html2canvas(card,{scale:1.6, backgroundColor:getComputedStyle(document.body).getPropertyValue('--bg')});
+  const img = canvas.toDataURL("image/png");
+  const pw = pdf.internal.pageSize.getWidth();
+  const ph = pdf.internal.pageSize.getHeight();
+  const ratio = Math.min(pw/canvas.width, ph/canvas.height);
+  const w = canvas.width * ratio;
+  const h = canvas.height * ratio;
+  if (!first) pdf.addPage("l","a4");
+  first = false;
+  pdf.addImage(img,"PNG",(pw-w)/2,(ph-h)/2,w,h);
 }
+pdf.save("Painel_PAC_RS.pdf");
+};
 </script>
 </body>
 </html>
