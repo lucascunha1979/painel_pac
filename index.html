@@ -1,23 +1,16 @@
-# Write a complete index.html with corrected graphs (no label overlap), correct BRL values, 
-# PDF export with tables-only, and drill interactivity. It loads the CSV from the user's GitHub.
-html = r"""<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
+<title>Painel Novo PAC – Rio Grande do Sul</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Painel do Novo PAC – Rio Grande do Sul</title>
-
-<!-- Libs -->
-<script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 <style>
-:root{
-  --bg:#ffffff; --panel:#f6f7f8; --text:#0b0b0b; --muted:#666;
-  --accent:#e11d2e; --border:#e1e2e5;
-}
+:root{ --bg:#ffffff; --panel:#f4f5f7; --text:#111; --muted:#555; --accent:#e11d2e; }
+.dark { --bg:#0a0a0a; --panel:#181a1b; --text:#fff; --muted:#c9c9c9; --accent:#ef4444; }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;padding:18px;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
@@ -25,27 +18,34 @@ body{margin:0;padding:18px;background:var(--bg);color:var(--text);font-family:Ar
 h1{margin:0 0 6px;font-size:26px}
 h2{margin:0 0 10px;font-size:20px;color:var(--accent)}
 .meta{color:var(--muted);margin-bottom:10px}
-.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;margin:0 0 18px}
+.card{background:var(--panel);border:1px solid #d6d7da;border-radius:12px;padding:16px;margin:0 0 18px}
+.dark .card{border-color:#2a2d2f}
 select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:var(--bg);color:var(--text);margin-right:10px}
+.dark select{border-color:#3c4043}
 .btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:600}
 .btn-accent{background:var(--accent);color:#fff}
 .btn-muted{background:#999;color:#fff}
 .topbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.right{margin-left:auto;display:flex;gap:8px}
 #valorTotal{background:var(--accent);color:#fff;padding:14px;border-radius:12px;text-align:center;font-size:28px;font-weight:700}
 .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-.kpi{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 12px;min-width:180px}
+.kpi{background:var(--panel);border:1px solid #d6d7da;border-radius:10px;padding:10px 12px;min-width:180px}
+.dark .kpi{border-color:#2a2d2f}
 .kpi b{display:block;font-size:18px;margin-top:4px}
 .chart{height:420px}
 .scroll-x{overflow-x:auto}
-.vscroll{max-height:640px;overflow-y:auto}
 .chart.wide{width:1700px}
 .chart.wider{width:2200px}
-.small{font-size:12px;color:var(--muted)}
 .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.badge{background:#eef0f2;color:#111;border-radius:20px;padding:4px 10px;font-size:12px;border:1px solid var(--border)}
+.badge{background:#e8eaed;color:#111;border-radius:20px;padding:4px 10px;font-size:12px;border:1px solid #cfd1d4}
+.dark .badge{background:#2a2d2f;color:#fff;border-color:#3a3d40}
 .badge .x{margin-left:6px;cursor:pointer}
-footer{margin-top:14px;color:var(--muted);font-size:12px}
+.small{font-size:12px;color:var(--muted)}
+/* vertical scroll containers for long horizontal bar charts */
+.vscroll{max-height:560px; overflow:auto;}
+/* keep y labels readable */
+.ticktext{white-space:nowrap}
+.footer{color:var(--muted); font-size:12px; margin-top:6px}
 </style>
 </head>
 <body>
@@ -53,10 +53,11 @@ footer{margin-top:14px;color:var(--muted);font-size:12px}
   <div class="topbar">
     <div>
       <h1>Painel do Novo PAC – Rio Grande do Sul</h1>
-      <div class="meta">Fonte: Novo PAC (2023–2030) – Casa Civil / Governo Federal — atualização agosto/2025</div>
+      <div class="meta">Fonte: Novo PAC (2023–2030), Casa Civil – Governo Federal — atualização: agosto/2025</div>
     </div>
     <div class="right">
-      <button id="pdfBtn" class="btn btn-accent" title="Baixar PDF com tabelas">📄 PDF (tabelas)</button>
+      <button id="themeBtn" class="btn btn-accent" title="Alternar tema">🌙/☀️</button>
+      <button id="pdfBtn" class="btn btn-accent" title="Baixar PDF (tabelas)">📄 PDF (tabelas)</button>
     </div>
   </div>
 
@@ -89,69 +90,60 @@ footer{margin-top:14px;color:var(--muted);font-size:12px}
 
   <div class="card"><h2>Tipo de Executor</h2><div id="chartExecutor" class="chart"></div></div>
   <div class="card"><h2>Estágio</h2><div id="chartEstagio" class="chart"></div></div>
-
   <div class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart"></div></div>
-
   <div class="card scroll-x"><h2>Eixo</h2><div id="chartEixo" class="chart wide"></div></div>
 
   <div class="card vscroll"><h2>Subeixo</h2><div id="chartSubeixo" class="chart"></div></div>
   <div class="card vscroll"><h2>Modalidade</h2><div id="chartModalidade" class="chart"></div></div>
   <div class="card vscroll"><h2>Empreendimentos</h2><div id="chartEmp" class="chart"></div></div>
 
-  <div class="small">Clique em qualquer gráfico para filtrar; clique novamente para desfazer. Use “Reset filtros” para limpar tudo.</div>
-
-  <footer>Fonte: Novo PAC (2023–2030) – Casa Civil / Governo Federal — atualização agosto/2025</footer>
+  <div class="footer">Fonte: Novo PAC (2023–2030), Casa Civil – Governo Federal — atualização: agosto/2025</div>
 </div>
 
 <script>
-// ========= CONFIG =========
+// ======= CONFIG =======
 const CSV_FILE = "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv";
 
-// ========= HELPERS =========
+// ======= HELPERS =======
 const BRL = (n) => {
-  if (!isFinite(n)) return "R$ 0,00";
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (!isFinite(n)) return "R$ 0,00";
+  return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2, maximumFractionDigits:2}).format(n);
 };
-const parseMoney = (s) => {
-  if (s == null) return 0;
-  return parseFloat(String(s).replace(/R\$|\s|\./g,"").replace(",", ".")) || 0;
-};
-const parsePct = (s) => {
-  if (s == null) return 0;
-  return parseFloat(String(s).replace("%","").replace(",", ".")) || 0;
-};
-// wrap words with <br> every N characters (on spaces)
-const wrap = (txt, len=18) => String(txt||"").replace(new RegExp(`(?![^\\n]{1,${len}}$)([^\\n]{1,${len}})\\s`,"g"),"$1<br>");
-// small helper for default update order
-const byUpdateOrder = v => { const x = String(v||"").toLowerCase();
+const parseMoney = s => parseFloat(String(s||"").replace(/R\$|\s|\./g,"").replace(",", "."))||0;
+const parsePct   = s => parseFloat(String(s||"").replace("%","").replace(",", "."))||0;
+
+const wrap = (txt, len=20) => String(txt||"").replace(new RegExp(`(?![^\\n]{1,${len}}$)([^\\n]{1,${len}})\\s`,"g"),"$1<br>");
+const ellipsis = (t, max=48) => String(t||"").length>max ? String(t).slice(0,max-1)+"…" : t;
+
+const byUpdateOrder = v => { const x=String(v||"").toLowerCase();
   if (x.includes("abr")) return 1;
   if (x.includes("jul")) return 2;
   if (x.includes("ago")) return 3;
   return 0;
 };
 
-// ========= STATE =========
+// ======= STATE =======
 let RAW = [];
 let FILTERS = { Atual:null, Muni:"Todos" };
 let DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null };
 
-// ========= LOAD CSV =========
+// ======= LOAD CSV =======
 Papa.parse(CSV_FILE,{
   download:true, header:true, skipEmptyLines:true,
   complete: (res)=>{
     RAW = res.data.map(r=>({
-      Atual: r["Atualização"] || r["Atualizacao"] || "",
-      Muni:  r["Município"]   || r["Municipio"]   || "",
-      Executor: r["Tipo de Executor"] || "",
-      Estagio:  r["Estágio"] || r["Estagio"] || "",
-      Classificacao: r["Classificação"] || r["Classificacao"] || "",
-      Eixo: r["Eixo"] || "",
-      Subeixo: r["Subeixo"] || "",
-      Modalidade: r["Modalidade"] || "",
-      Emp: r["Empreendimento"] || "",
+      Atual:r["Atualização"]||r["Atualizacao"]||"",
+      Muni: r["Município"]||r["Municipio"]||"",
+      Executor: r["Tipo de Executor"]||"",
+      Estagio: r["Estágio"]||r["Estagio"]||"",
+      Classificacao: r["Classificação"]||r["Classificacao"]||"",
+      Eixo: r["Eixo"]||"",
+      Subeixo: r["Subeixo"]||"",
+      Modalidade: r["Modalidade"]||"",
+      Emp: r["Empreendimento"]||"",
       Valor: parseMoney(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
-      ExecPct: parsePct(r["Percentual de execução do empreendimento (%)"]),
-    })).filter(r=>r.Atual && r.Eixo);
+      ExecPct: parsePct(r["Percentual de execução do empreendimento (%)"])
+    })).filter(r=>r.Atual && (r.Valor>=0));
 
     initFilters();
     renderAll();
@@ -159,11 +151,11 @@ Papa.parse(CSV_FILE,{
   error:(e)=>alert("Erro ao carregar CSV: "+e.message)
 });
 
-// ========= FILTERS =========
+// ======= FILTERS UI =======
 function initFilters(){
   const u = [...new Set(RAW.map(d=>d.Atual))].sort((a,b)=>byUpdateOrder(a)-byUpdateOrder(b));
   selAtual.innerHTML = u.map(v=>`<option>${v}</option>`).join("");
-  FILTERS.Atual = u[u.length-1] || "";
+  FILTERS.Atual = u[u.length-1];
   selAtual.value = FILTERS.Atual;
   selAtual.onchange = e => { FILTERS.Atual = e.target.value; renderAll(); };
 
@@ -171,10 +163,8 @@ function initFilters(){
   m.forEach(v=> selMuni.innerHTML += `<option>${v}</option>`);
   selMuni.onchange = e => { FILTERS.Muni = e.target.value; renderAll(); };
 
-  document.getElementById("resetBtn").onclick = ()=>{
-    DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null };
-    renderAll();
-  };
+  document.getElementById("resetBtn").onclick = ()=>{ DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null }; renderAll(); };
+  document.getElementById("themeBtn").onclick = ()=>{ document.body.classList.toggle("dark"); };
 }
 
 function activeRows(){
@@ -197,7 +187,7 @@ function renderBadges(){
   badges.querySelectorAll(".x").forEach(x=> x.onclick = (e)=>{ const k=e.target.dataset.k; DRILL[k]=null; renderAll(); });
 }
 
-// ========= AGG =========
+// ======= AGG =======
 function aggWeighted(key){
   const m = {};
   activeRows().forEach(r=>{
@@ -209,7 +199,7 @@ function aggWeighted(key){
   return Object.entries(m).map(([k,o])=>({k, v:o.sum, exec: o.sum? (o.w/o.sum*100):0})).sort((a,b)=>b.v-a.v);
 }
 
-// ========= HIER & KPIs =========
+// ======= HIER & KPIs =======
 function renderHierarchyAndKPIs(){
   const f = activeRows();
   const uniq = arr => new Set(arr).size;
@@ -224,25 +214,14 @@ function renderHierarchyAndKPIs(){
   valorTotal.textContent = `Total: ${BRL(total)}`;
   kpiProj.textContent   = f.length.toLocaleString("pt-BR");
   kpiMuni.textContent   = new Set(f.map(x=>x.Muni)).size.toLocaleString("pt-BR");
-  const execMedia = f.length ? (f.reduce((a,r)=>a+r.ExecPct,0)/f.length) : 0;
+  const execMedia = f.length ? f.reduce((a,r)=>a+(isFinite(r.ExecPct)?r.ExecPct:0),0)/f.length : 0;
   kpiExec.textContent   = `${execMedia.toFixed(1).replace(".",",")}%`;
 }
 
-// ========= PLOTS =========
-function attachClickFilter(el, key, horizontal=false){
-  el.on('plotly_click', d=>{
-    const label = horizontal ? d.points[0].y : d.points[0].x;
-    const plain = String(label).replace(/<br>/g," ");
-    const cur = DRILL[key];
-    DRILL[key] = (cur===plain) ? null : plain;
-    renderAll();
-  });
-}
-
+// ======= PLOTS =======
 function piePlot(divId, key){
   const a = aggWeighted(key);
-  const node = document.getElementById(divId);
-  Plotly.newPlot(node,[{
+  Plotly.newPlot(divId,[{
     labels:a.map(x=>wrap(x.k,20)),
     values:a.map(x=>x.v),
     type:"pie", hole:.25, textinfo:"label+percent",
@@ -250,175 +229,122 @@ function piePlot(divId, key){
     customdata:a.map(x=>BRL(x.v))
   }],{
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
     legend:{orientation:"h"}
   },{responsive:true});
-  attachClickFilter(node, key, false);
+
+  document.getElementById(divId).on('plotly_click', d=>{
+    const label = d.points[0].label.replace(/<br>/g," ");
+    const cur = DRILL[key];
+    DRILL[key] = (cur===label) ? null : label;
+    renderAll();
+  });
 }
 
-function barPlotVertical(divId, key, options={}){
+function barPlotVertical(divId, key){
   const a = aggWeighted(key);
-  const node = document.getElementById(divId);
-
-  // bottom margin big to avoid label cut; wrap labels
-  const labels = a.map(x=>wrap(x.k,16));
+  const labels = a.map(x=>wrap(x.k,22));
   const data = [{
-    x: labels,
-    y: a.map(x=>x.v),
+    x: labels, y: a.map(x=>x.v),
     type:"bar",
-    marker:{color:"#e11d2e"},
+    marker:{color:getComputedStyle(document.body).getPropertyValue('--accent')},
     customdata: a.map(x=>BRL(x.v)),
-    meta: a.map(x=>x.exec.toFixed(1).replace(".",",")),
-    hovertemplate:"%{x}<br><b>%{customdata}</b><br>Exec. média: %{meta}%<extra></extra>"
+    hovertemplate: "%{x}<br><b>%{customdata}</b><extra></extra>"
   }];
-
   const layout = {
     paper_bgcolor:"rgba(0,0,0,0)",
     plot_bgcolor:"rgba(0,0,0,0)",
-    margin:{l:70,r:20,t:10,b:220}, // <- grande para nomes longos
-    xaxis:{
-      automargin:true,
-      tickangle:0, // sem inclinar, pois usamos wrap
-    },
-    yaxis:{
-      automargin:true,
-      separatethousands:true,
-      tickprefix:"R$ "
-    }
+    font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
+    margin:{l:70,r:30,t:10,b:190},
+    xaxis: { automargin:true, tickangle:-30 },
+    yaxis: { automargin:true, tickformat:",.0f" }
   };
-
-  Plotly.newPlot(node, data, layout, {responsive:true});
-  attachClickFilter(node, key, false);
+  Plotly.newPlot(divId, data, layout, {responsive:true});
+  document.getElementById(divId).on('plotly_click', d=>{
+    const lbl = String(d.points[0].x).replace(/<br>/g," ");
+    const cur = DRILL[key]; DRILL[key] = (cur===lbl)? null : lbl; renderAll();
+  });
 }
 
 function barPlotHorizontal(divId, key){
   const a = aggWeighted(key);
-  const node = document.getElementById(divId);
-
-  // dynamic height to spread labels (no overlap)
-  const base = 26; // px per category
-  const h = Math.min(1200, Math.max(420, base * a.length + 120));
-  node.style.height = h + "px";
-
+  const dynamicH = Math.max(560, 24*a.length + 120);
+  const shownLabels = a.map(x=>ellipsis(x.k, 64));
+  const fullLabels  = a.map(x=>x.k);
   const data = [{
-    x: a.map(x=>x.v),
-    y: a.map(x=>wrap(x.k,36)),
-    type:"bar",
-    orientation:"h",
-    marker:{color:"#e11d2e"},
-    customdata: a.map(x=>BRL(x.v)),
-    meta: a.map(x=>x.exec.toFixed(1).replace(".",",")),
-    hovertemplate:"%{y}<br><b>%{customdata}</b><br>Exec. média: %{meta}%<extra></extra>"
+    x: a.map(x=>x.v), y: shownLabels,
+    type:"bar", orientation:"h", marker:{color:getComputedStyle(document.body).getPropertyValue('--accent')},
+    hovertext: fullLabels.map((t,i)=>fullLabels[i]+"<br><b>"+BRL(a[i].v)+"</b>"),
+    hoverinfo:"text"
   }];
-
   const layout = {
+    height: dynamicH,
+    bargap: 0.20,
     paper_bgcolor:"rgba(0,0,0,0)",
     plot_bgcolor:"rgba(0,0,0,0)",
-    margin:{l:340,r:20,t:10,b:40},
-    xaxis:{separatethousands:true, tickprefix:"R$ "},
-    yaxis:{automargin:true}
+    font:{color:getComputedStyle(document.body).getPropertyValue('--text')},
+    margin:{l:340,r:30,t:10,b:40},
+    xaxis:{ automargin:true, tickformat:",.0f" },
+    yaxis:{ automargin:true }
   };
-
-  Plotly.newPlot(node, data, layout, {responsive:true});
-  attachClickFilter(node, key, true);
+  Plotly.newPlot(divId, data, layout, {responsive:true});
+  document.getElementById(divId).on('plotly_click', d=>{
+    const lbl = fullLabels[d.points[0].pointIndex];
+    const cur = DRILL[key]; DRILL[key] = (cur===lbl)? null : lbl; renderAll();
+  });
 }
 
-// ========= TABLES FOR PDF =========
-function buildTables(){
-  // returns an array of tables [{title, headers, rows}]
-  const tables = [];
-  const f = activeRows();
-
-  // Helper to aggregate
-  const sumBy = (key) => {
-    const map = {};
-    f.forEach(r=>{
-      const k = r[key] || "Não informado";
-      if(!map[k]) map[k]={valor:0, execSum:0, cnt:0};
-      map[k].valor += r.Valor;
-      map[k].execSum += r.ExecPct;
-      map[k].cnt += 1;
-    });
-    return Object.entries(map).map(([k,o])=>({
-      categoria: k,
-      valor: o.valor,
-      execMedia: o.cnt? o.execSum/o.cnt : 0,
-      qtd: o.cnt
-    })).sort((a,b)=>b.valor-a.valor);
-  };
-
-  const sections = [
-    ["Eixo","Eixo"],
-    ["Subeixo","Subeixo"],
-    ["Modalidade","Modalidade"],
-    ["Classificação","Classificacao"],
-    ["Estágio","Estagio"],
-    ["Tipo de Executor","Executor"],
-    ["Empreendimentos","Emp"],
-  ];
-
-  sections.forEach(([title, key])=>{
-    const agg = sumBy(key);
-    const rows = agg.map(o=>[o.categoria, BRL(o.valor), o.qtd.toLocaleString("pt-BR"), (o.execMedia.toFixed(1).replace(".",","))+"%"]);
-    tables.push({title, headers:["Categoria","Soma Valor (R$)","Qtd.","Execução média"], rows});
-  });
-
-  return tables;
-}
-
-document.getElementById("pdfBtn").onclick = ()=>{
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF("l","pt","a4");
-  const pageW = doc.internal.pageSize.getWidth();
-
-  // Header info
-  const f = activeRows();
-  const total = f.reduce((a,r)=>a+r.Valor,0);
-  const execMedia = f.length ? (f.reduce((a,r)=>a+r.ExecPct,0)/f.length) : 0;
-  doc.setFontSize(14);
-  doc.text("Relatório de Tabelas – Painel do Novo PAC – RS", pageW/2, 28, {align:"center"});
-  doc.setFontSize(10);
-  doc.text(`Atualização: ${FILTERS.Atual}   |   Município: ${FILTERS.Muni}   |   Total: ${BRL(total)}   |   Empreendimentos: ${f.length}   |   Execução média: ${execMedia.toFixed(1).replace(".",",")}%`, 28, 48);
-
-  const tables = buildTables();
-  let y = 62;
-  tables.forEach((t, idx)=>{
-    doc.setFontSize(12);
-    doc.text(t.title, 28, y);
-    y += 6;
-    doc.autoTable({
-      startY: y,
-      head: [t.headers],
-      body: t.rows,
-      styles: {fontSize:8, cellPadding:2},
-      headStyles: {fillColor:[225,29,46]},
-      theme: "grid",
-      margin: {left:28, right:28},
-      didDrawPage: (data)=>{ y = data.cursor.y + 18; }
-    });
-  });
-
-  doc.setFontSize(8);
-  doc.text("Fonte: Novo PAC (2023–2030) – Casa Civil / Governo Federal — atualização agosto/2025", pageW/2, doc.internal.pageSize.getHeight()-16, {align:"center"});
-
-  doc.save("tabelas_pac_rs.pdf");
-};
-
-// ========= RENDER ALL =========
+// ======= RENDER ALL =======
 function renderAll(){
   renderHierarchyAndKPIs();
   renderBadges();
   piePlot("chartExecutor","Executor");
   piePlot("chartEstagio","Estagio");
-  barPlotVertical("chartClassificacao","Classificacao");   // fix margin + wrap labels
-  barPlotVertical("chartEixo","Eixo");                     // fix margin + wrap labels
+  barPlotVertical("chartClassificacao","Classificacao");
+  barPlotVertical("chartEixo","Eixo");
   barPlotHorizontal("chartSubeixo","Subeixo");
   barPlotHorizontal("chartModalidade","Modalidade");
   barPlotHorizontal("chartEmp","Emp");
 }
+
+// ======= PDF TABLES ONLY =======
+document.getElementById("pdfBtn").onclick = () => {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF("l","pt","a4");
+
+  const f = activeRows();
+  const total = f.reduce((a,r)=>a+r.Valor,0);
+  const execMedia = f.length ? f.reduce((a,r)=>a+(isFinite(r.ExecPct)?r.ExecPct:0),0)/f.length : 0;
+
+  const headStyle = { fillColor:[225,29,46], textColor:255, halign:"left"};
+  pdf.setFont("helvetica","bold"); pdf.setFontSize(14);
+  pdf.text("Relatório – Tabelas (Novo PAC – RS)", 40, 30);
+  pdf.setFont("helvetica","normal"); pdf.setFontSize(11);
+  pdf.text(`Atualização: ${FILTERS.Atual} | Município: ${FILTERS.Muni} | Total: ${BRL(total)} | Execução média: ${execMedia.toFixed(1).replace(".",",")}%`, 40, 48);
+
+  const makeTable = (title, rows) => {
+    pdf.addPage();
+    pdf.setFont("helvetica","bold"); pdf.setFontSize(12);
+    pdf.text(title, 40, 40);
+    pdf.autoTable({
+      startY: 52,
+      styles:{ fontSize:9, cellPadding:3 },
+      headStyles: headStyle,
+      head:[["Categoria","Valor (R$)"]],
+      body: rows.map(r => [r.k, BRL(r.v)])
+    });
+  };
+
+  makeTable("Tipo de Executor", aggWeighted("Executor"));
+  makeTable("Estágio",          aggWeighted("Estagio"));
+  makeTable("Classificação",    aggWeighted("Classificacao"));
+  makeTable("Eixo",             aggWeighted("Eixo"));
+  makeTable("Subeixo",          aggWeighted("Subeixo"));
+  makeTable("Modalidade",       aggWeighted("Modalidade"));
+  makeTable("Empreendimentos",  aggWeighted("Emp"));
+
+  pdf.save("relatorio_pac_tabelas.pdf");
+};
 </script>
 </body>
 </html>
-"""
-with open("/mnt/data/index.html","w", encoding="utf-8") as f:
-    f.write(html)
-print("index.html gravado em /mnt/data/index.html")
