@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Painel do Novo PAC – Rio Grande do Sul</title>
+<title>Painel Novo PAC – Rio Grande do Sul</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <!-- Plotly -->
@@ -113,6 +113,7 @@ const CSV_FILE = "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abr
 const nfBR2 = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2});
 const BRL = v => nfBR2.format(Math.round((v + Number.EPSILON)*100)/100);
 const pct1  = v => (isFinite(v)? (v.toFixed(1).replace(".",",")) : "0,0");
+const pct2  = v => (isFinite(v)? (v.toFixed(2).replace(".",",")) : "0,00"); // two decimals for PDF column
 function parseMoneyBR(s){
   if (s==null) return 0;
   const t = String(s).replace(/\s|R\$/g,"").replace(/\./g,"").replace(",",".").trim();
@@ -339,7 +340,7 @@ function buildOneTable(rows, key){
       <td>${r.qtd.toLocaleString("pt-BR")}</td>
       <td>${pct1(r.exec)}%</td>
       <td>${BRL(r.valor)}</td>
-      <td>${pct1(r.share)}%</td>
+      <td>${pct2(r.share)}%</td>
     </tr>`;
   });
   html+=`</tbody><tfoot><tr>
@@ -347,7 +348,7 @@ function buildOneTable(rows, key){
     <td><b>${rows.length.toLocaleString("pt-BR")}</b></td>
     <td><b>${pct1(avgValid(rows.map(x=>x.ExecPct)))}%</b></td>
     <td><b>${BRL(totalValor)}</b></td>
-    <td><b>100,0%</b></td>
+    <td><b>100,00%</b></td>
   </tr></tfoot></table>`;
   return html;
 }
