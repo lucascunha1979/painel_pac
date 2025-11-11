@@ -5,19 +5,16 @@
 <title>Painel do Novo PAC – Rio Grande do Sul</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<!-- Plotly para os gráficos -->
+<!-- Plotly -->
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-<!-- PapaParse para ler CSV -->
+<!-- PapaParse -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<!-- html2pdf para gerar PDF paginado (tabelas apenas) -->
+<!-- html2pdf -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
-:root{
-  --bg:#ffffff; --panel:#f4f5f7; --text:#111; --muted:#555; --accent:#e11d2e;
-}
+:root{ --bg:#ffffff; --panel:#f4f5f7; --text:#111; --muted:#555; --accent:#e11d2e; }
 *{box-sizing:border-box}
-html,body{height:100%}
 body{margin:0;padding:18px;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
 .wrap{max-width:1500px;margin:0 auto}
 h1{margin:0 0 6px;font-size:26px}
@@ -39,24 +36,20 @@ select{padding:8px 10px;border:1px solid #b9bdc0;border-radius:8px;background:va
 .badge{background:#e8eaed;color:#111;border-radius:20px;padding:4px 10px;font-size:12px;border:1px solid #cfd1d4}
 .badge .x{margin-left:6px;cursor:pointer}
 
-/* containers de gráfico com rolagem quando necessário */
-.chart{height:420px}
-.chart-v{height:460px; overflow-x:auto;}
-.chart-h{height:540px; overflow-y:auto;}
-.chart-wide{width:1700px}   /* para Eixo/Classificação quando houver muitas categorias */
-.chart-wider{width:2200px}  /* se estourar muito */
+/* gráficos */
+.chart{height:440px}
+.chart-v{overflow-x:auto}
+.chart-h{height:560px; overflow-y:auto}
 
-/* TABELAS (PDF) */
-#tables{display:none} /* só aparece no PDF */
+/* TABELAS para PDF */
+#tables{display:none}
+#tables.show{display:block}
 #tables h2{color:#000;margin:16px 0 8px}
 table.report{border-collapse:collapse;width:100%;font-size:11px}
 table.report th, table.report td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}
 table.report th{background:#efefef}
 tfoot td{font-weight:700;background:#fafafa}
 .source{margin-top:10px;color:#333;font-size:11px}
-@media print{
-  body{background:#fff}
-}
 </style>
 </head>
 <body>
@@ -102,7 +95,6 @@ tfoot td{font-weight:700;background:#fafafa}
   <div class="card"><h2>Tipo de Executor</h2><div id="chartExecutor" class="chart chart-v"></div></div>
   <div class="card"><h2>Estágio</h2><div id="chartEstagio" class="chart chart-v"></div></div>
   <div class="card"><h2>Classificação</h2><div id="chartClassificacao" class="chart chart-v"></div></div>
-
   <div class="card"><h2>Eixo</h2><div id="chartEixo" class="chart chart-v"></div></div>
   <div class="card"><h2>Subeixo</h2><div id="chartSubeixo" class="chart chart-h"></div></div>
   <div class="card"><h2>Modalidade</h2><div id="chartModalidade" class="chart chart-h"></div></div>
@@ -110,47 +102,39 @@ tfoot td{font-weight:700;background:#fafafa}
 
   <div class="small">Clique em qualquer gráfico para filtrar; clique novamente para desfazer. “Reset filtros” limpa tudo.</div>
 
-  <!-- Seção oculta com TABELAS (usada para gerar o PDF) -->
+  <!-- Tabelas para PDF -->
   <div id="tables"></div>
 
 </div>
 
 <script>
-// ===================== CONFIG =====================
 const CSV_FILE = "https://raw.githack.com/lucascunha1979/painel_pac/main/pac_abril_julho_agosto_v1.csv";
 
-// ===================== HELPERS =====================
 const nfBR2 = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2});
+const BRL = v => nfBR2.format(Math.round((v + Number.EPSILON)*100)/100);
 const pct1  = v => (isFinite(v)? (v.toFixed(1).replace(".",",")) : "0,0");
-const BRL   = v => nfBR2.format(Math.round((v + Number.EPSILON)*100)/100);
-
 function parseMoneyBR(s){
   if (s==null) return 0;
-  const t = String(s).replace(/\s|R\$/g,"").replace(/\./g,"").replace(",",".");
+  const t = String(s).replace(/\s|R\$/g,"").replace(/\./g,"").replace(",",".").trim();
   const n = parseFloat(t);
   return isFinite(n) ? n : 0;
 }
 function parsePctBR(s){
-  if (s==null) return 0;
-  const t = String(s).replace("%","").replace(",",".");
+  if (s==null) return NaN;
+  const t = String(s).replace("%","").replace(",",".").trim();
   const n = parseFloat(t);
-  return isFinite(n) ? n : 0;
+  return isFinite(n) ? n : NaN;
 }
-const wrap = (txt, len=28) => String(txt||"").replace(new RegExp(`(?![^\\n]{1,${len}}$)([^\\n]{1,${len}})\\s`,"g"),"$1<br>");
-const ellips = (txt, len=40) => {
+const ellips = (txt, len=42) => {
   const s = String(txt||"");
   return s.length>len ? s.slice(0,len-1)+"…" : s;
 };
 
-// ===================== STATE =====================
-let RAW = [];
-let FILTERS = { Atual:null, Muni:"Todos" };
-let DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null };
+let RAW=[], FILTERS={Atual:null, Muni:"Todos"}, DRILL={Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null};
 
-// ===================== LOAD CSV =====================
 Papa.parse(CSV_FILE,{
   download:true, header:true, skipEmptyLines:true,
-  complete: (res)=>{
+  complete:(res)=>{
     RAW = res.data.map(r=>({
       Atual:  r["Atualização"]||r["Atualizacao"]||"",
       Muni:   r["Município"]||r["Municipio"]||"",
@@ -164,14 +148,12 @@ Papa.parse(CSV_FILE,{
       Valor: parseMoneyBR(r["Estimativa do valor total do empreendimento no Novo PAC (2023-2030) (R$)"]),
       ExecPct: parsePctBR(r["Percentual de execução do empreendimento (%)"])
     })).filter(r=>r.Atual && r.Eixo);
-
     initFilters();
     renderAll();
   },
   error:(e)=>alert("Erro ao carregar CSV: "+e.message)
 });
 
-// ===================== FILTERS =====================
 function byUpdateOrder(v){
   const x = String(v||"").toLowerCase();
   if (x.includes("abr")) return 1;
@@ -181,26 +163,22 @@ function byUpdateOrder(v){
 }
 function initFilters(){
   const u = [...new Set(RAW.map(d=>d.Atual))].sort((a,b)=>byUpdateOrder(a)-byUpdateOrder(b));
-  document.getElementById("selAtual").innerHTML = u.map(v=>`<option>${v}</option>`).join("");
+  selAtual.innerHTML = u.map(v=>`<option>${v}</option>`).join("");
   FILTERS.Atual = u[u.length-1];
-  document.getElementById("selAtual").value = FILTERS.Atual;
-  document.getElementById("selAtual").onchange = e => { FILTERS.Atual = e.target.value; renderAll(); };
+  selAtual.value = FILTERS.Atual;
+  selAtual.onchange = e=>{ FILTERS.Atual=e.target.value; renderAll(); };
 
   const m = [...new Set(RAW.map(d=>d.Muni))].filter(Boolean).sort();
-  const selM = document.getElementById("selMuni");
-  m.forEach(v=> selM.innerHTML += `<option>${v}</option>`);
-  selM.onchange = e => { FILTERS.Muni = e.target.value; renderAll(); };
+  m.forEach(v=> selMuni.innerHTML += `<option>${v}</option>`);
+  selMuni.onchange = e=>{ FILTERS.Muni=e.target.value; renderAll(); };
 
-  document.getElementById("btnReset").onclick = ()=>{
-    DRILL = { Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null };
-    renderAll();
-  };
-
-  document.getElementById("btnPdf").onclick = ()=>makePDF();
+  btnReset.onclick = ()=>{ DRILL={Executor:null, Estagio:null, Classificacao:null, Eixo:null, Subeixo:null, Modalidade:null}; renderAll(); };
+  btnPdf.onclick   = ()=> makePDF();
 }
+
 function actRows(){
-  return RAW.filter(r =>
-    r.Atual === FILTERS.Atual &&
+  return RAW.filter(r=>
+    r.Atual===FILTERS.Atual &&
     (FILTERS.Muni==="Todos" || r.Muni===FILTERS.Muni) &&
     (!DRILL.Executor || r.Executor===DRILL.Executor) &&
     (!DRILL.Estagio || r.Estagio===DRILL.Estagio) &&
@@ -210,37 +188,33 @@ function actRows(){
     (!DRILL.Modalidade || r.Modalidade===DRILL.Modalidade)
   );
 }
+
 function renderBadges(){
-  const b = [];
+  const b=[];
   for (const [k,v] of Object.entries(DRILL)) if (v) b.push(`<span class="badge">${k}: ${v}<span class="x" data-k="${k}">✕</span></span>`);
-  const el = document.getElementById("badges");
-  el.innerHTML = b.length? b.join("") : `<span class="small">Nenhum filtro aplicado.</span>`;
-  el.querySelectorAll(".x").forEach(x=> x.onclick = (e)=>{ const k=e.target.dataset.k; DRILL[k]=null; renderAll(); });
+  badges.innerHTML = b.length? b.join("") : `<span class="small">Nenhum filtro aplicado.</span>`;
+  badges.querySelectorAll(".x").forEach(x=> x.onclick=(e)=>{ const k=e.target.dataset.k; DRILL[k]=null; renderAll(); });
 }
 
-// ===================== AGG =====================
 function aggSimple(key){
-  const m = {};
+  const m={};
   actRows().forEach(r=>{
     const k = r[key] || "Não informado";
-    if(!m[k]) m[k]={sumValor:0, n:0, sumPct:0};
-    m[k].sumValor += r.Valor;
+    if(!m[k]) m[k]={sumVal:0, n:0, pctVals:[]};
+    m[k].sumVal += r.Valor;
     m[k].n += 1;
-    m[k].sumPct += r.ExecPct; // média simples!
+    if (isFinite(r.ExecPct)) m[k].pctVals.push(r.ExecPct);
   });
-  return Object.entries(m).map(([k,o])=>({
-    k,
-    v:o.sumValor,
-    n:o.n,
-    exec:(o.n? (o.sumPct/o.n) : 0)
-  })).sort((a,b)=>b.v-a.v);
+  return Object.entries(m).map(([k,o])=>{
+    const exec = o.pctVals.length ? o.pctVals.reduce((a,b)=>a+b,0)/o.pctVals.length : 0;
+    return {k, v:o.sumVal, n:o.n, exec};
+  }).sort((a,b)=>b.v-a.v);
 }
 
-// ===================== HIER + KPIs =====================
 function renderHierarchyAndKPIs(){
   const f = actRows();
   const uniq = arr => new Set(arr).size;
-  document.getElementById("hier").innerHTML = `
+  hier.innerHTML = `
     <div class="kpis" style="margin-top:0">
       <div class="kpi"><div class="small">Eixos</div><b>${uniq(f.map(x=>x.Eixo))}</b></div>
       <div class="kpi"><div class="small">Subeixos</div><b>${uniq(f.map(x=>x.Subeixo))}</b></div>
@@ -248,17 +222,18 @@ function renderHierarchyAndKPIs(){
       <div class="kpi"><div class="small">Empreendimentos</div><b>${uniq(f.map(x=>x.Emp))}</b></div>
     </div>`;
   const total = f.reduce((a,r)=>a+r.Valor,0);
-  document.getElementById("valorTotal").textContent = `Total: ${BRL(total)}`;
-  document.getElementById("kpiProj").textContent = f.length.toLocaleString("pt-BR");
-  document.getElementById("kpiMuni").textContent = new Set(f.map(x=>x.Muni)).size.toLocaleString("pt-BR");
-  const execMedia = f.length ? f.reduce((a,r)=>a+r.ExecPct,0)/f.length : 0; // simples
-  document.getElementById("kpiExec").textContent = `${pct1(execMedia)}%`;
+  valorTotal.textContent = `Total: ${BRL(total)}`;
+  kpiProj.textContent = f.length.toLocaleString("pt-BR");
+  kpiMuni.textContent = new Set(f.map(x=>x.Muni)).size.toLocaleString("pt-BR");
+
+  const valid = f.map(r=>r.ExecPct).filter(x=>isFinite(x));
+  const execMedia = valid.length ? valid.reduce((a,b)=>a+b,0)/valid.length : 0;
+  kpiExec.textContent = `${pct1(execMedia)}%`;
 }
 
-// ===================== PLOTS =====================
 function piePlot(divId, key){
   const a = aggSimple(key);
-  const labels = a.map(x=>wrap(x.k,22));
+  const labels = a.map(x=>x.k);
   const hover = a.map(x=>`${x.k}<br><b>${BRL(x.v)}</b><br>Exec. média: ${pct1(x.exec)}%<br>Qtd: ${x.n.toLocaleString("pt-BR")}`);
   Plotly.newPlot(divId,[{
     labels, values:a.map(x=>x.v), type:"pie", hole:.25, textinfo:"label+percent",
@@ -266,76 +241,65 @@ function piePlot(divId, key){
   }],{
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)", legend:{orientation:"h"}
   },{responsive:true});
-
-  const el = document.getElementById(divId);
+  const el=document.getElementById(divId);
   el.on('plotly_click', d=>{
-    const label = d.points[0].label.replace(/<br>/g," ");
-    const plain = label;
-    const cur = DRILL[key];
-    DRILL[key] = (cur===plain) ? null : plain;
+    const label = a[d.points[0].pointIndex].k;
+    DRILL[key] = (DRILL[key]===label)? null: label;
     renderAll();
   });
 }
 
 function barPlotVertical(divId, key){
   const a = aggSimple(key);
-  // largura dinâmica para evitar corte
-  const w = Math.max(900, 24*a.length + 600);
-  const x = a.map(x=>ellips(x.k, 36)); // eixo com reticências
+  const w = Math.max(1000, 26*a.length + 800);
   const data = [{
-    x, y:a.map(x=>x.v), type:"bar",
-    marker:{color:"#e11d2e"},
-    customdata:a.map(x=>`${x.k}`),
-    hovertemplate:"%{customdata}<br><b>%{y:,.2f}</b><br>Exec. média: %{meta}%<br>Qtd: %{text}<extra></extra>",
+    x:a.map(x=>ellips(x.k, 50)), y:a.map(x=>x.v),
+    type:"bar", marker:{color:"#e11d2e"},
     text:a.map(x=>x.n.toLocaleString("pt-BR")),
-    meta:a.map(x=>pct1(x.exec))
+    customdata:a.map(x=>x.k),
+    meta:a.map(x=>pct1(x.exec)),
+    hovertemplate:"%{customdata}<br><b>%{y:,.2f}</b><br>Exec. média: %{meta}%<br>Qtd: %{text}<extra></extra>"
   }];
-  const layout = {
-    width: w, height: 420, bargap:0.25,
+  const layout={
+    width:w, height:440, bargap:0.25,
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
-    margin:{l:90,r:20,t:10,b:150},
+    margin:{l:110,r:20,t:10,b:200},
     xaxis:{tickangle:-30, automargin:true},
     yaxis:{tickformat:",.2f"}
   };
   Plotly.newPlot(divId, data, layout, {responsive:true});
   document.getElementById(divId).on('plotly_click', d=>{
     const label = a[d.points[0].pointIndex].k;
-    const cur = DRILL[key];
-    DRILL[key] = (cur===label) ? null : label;
+    DRILL[key] = (DRILL[key]===label)? null: label;
     renderAll();
   });
 }
 
 function barPlotHorizontal(divId, key){
   const a = aggSimple(key);
-  // altura dinâmica: 22px por categoria (mín 540 / máx 1400 com rolagem do container)
-  const h = Math.min(1400, Math.max(540, 22*a.length+100));
-  const data = [{
-    x:a.map(x=>x.v),
-    y:a.map(x=>ellips(x.k, 70)),
+  const h = Math.min(1600, Math.max(560, 22*a.length+140));
+  const data=[{
+    x:a.map(x=>x.v), y:a.map(x=>ellips(x.k, 90)),
     type:"bar", orientation:"h", marker:{color:"#e11d2e"},
-    customdata:a.map(x=>x.k),
-    meta:a.map(x=>pct1(x.exec)),
     text:a.map(x=>x.n.toLocaleString("pt-BR")),
+    customdata:a.map(x=>x.k), meta:a.map(x=>pct1(x.exec)),
     hovertemplate:"%{customdata}<br><b>%{x:,.2f}</b><br>Exec. média: %{meta}%<br>Qtd: %{text}<extra></extra>"
   }];
-  const layout = {
-    height: h, bargap:0.25,
+  const layout={
+    height:h, bargap:0.25,
     paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
-    margin:{l:310,r:20,t:10,b:40},
-    xaxis:{tickformat:",.2f"}, yaxis:{automargin:true}
+    margin:{l:360,r:20,t:10,b:50},
+    xaxis:{tickformat:",.2f"},
+    yaxis:{automargin:true}
   };
   Plotly.newPlot(divId, data, layout, {responsive:true});
   document.getElementById(divId).on('plotly_click', d=>{
-    const idx = d.points[0].pointIndex;
-    const label = a[idx].k;
-    const cur = DRILL[key];
-    DRILL[key] = (cur===label) ? null : label;
+    const label = a[d.points[0].pointIndex].k;
+    DRILL[key] = (DRILL[key]===label)? null: label;
     renderAll();
   });
 }
 
-// ===================== RENDER =====================
 function renderAll(){
   renderHierarchyAndKPIs();
   renderBadges();
@@ -346,31 +310,31 @@ function renderAll(){
   barPlotHorizontal("chartSubeixo","Subeixo");
   barPlotHorizontal("chartModalidade","Modalidade");
   barPlotHorizontal("chartEmp","Emp");
-  buildTablesForPDF(); // mantém as tabelas atualizadas para o PDF
+  buildTablesForPDF();
 }
 
-// ===================== PDF (TABELAS APENAS) =====================
+/* ---------- PDF (só tabelas) ---------- */
 function buildOneTable(rows, key){
   const totalValor = rows.reduce((a,r)=>a+r.Valor,0);
-  const map = {};
+  const map={};
   rows.forEach(r=>{
-    const k = r[key] || "Não informado";
-    if(!map[k]) map[k]={n:0, sumVal:0, sumPct:0};
-    map[k].n += 1;
-    map[k].sumVal += r.Valor;
-    map[k].sumPct += r.ExecPct;
+    const k=r[key]||"Não informado";
+    if(!map[k]) map[k]={n:0, val:0, pctVals:[]};
+    map[k].n+=1;
+    map[k].val+=r.Valor;
+    if (isFinite(r.ExecPct)) map[k].pctVals.push(r.ExecPct);
   });
-  const arr = Object.entries(map).map(([k,o])=>{
-    const exec = o.n? (o.sumPct/o.n) : 0; // média simples
-    const pctVal = totalValor>0 ? (o.sumVal/totalValor*100) : 0;
-    return {categoria:k, qtd:o.n, exec, valor:o.sumVal, share:pctVal};
+  const arr=Object.entries(map).map(([k,o])=>{
+    const exec = o.pctVals.length? o.pctVals.reduce((a,b)=>a+b,0)/o.pctVals.length : 0;
+    const share = totalValor>0? (o.val/totalValor*100):0;
+    return {categoria:k, qtd:o.n, exec, valor:o.val, share};
   }).sort((a,b)=>b.valor-a.valor);
 
   let html = `<h2>${key}</h2><table class="report"><thead>
-    <tr><th>Categoria</th><th>Quantidade</th><th>Execução média (%)</th><th>Soma do valor (R$)</th><th>% do total (valor)</th></tr>
+  <tr><th>Categoria</th><th>Quantidade</th><th>Execução média (%)</th><th>Soma do valor (R$)</th><th>% do total (valor)</th></tr>
   </thead><tbody>`;
   arr.forEach(r=>{
-    html += `<tr>
+    html+=`<tr>
       <td>${r.categoria}</td>
       <td>${r.qtd.toLocaleString("pt-BR")}</td>
       <td>${pct1(r.exec)}%</td>
@@ -378,33 +342,40 @@ function buildOneTable(rows, key){
       <td>${pct1(r.share)}%</td>
     </tr>`;
   });
-  html += `</tbody><tfoot><tr>
+  html+=`</tbody><tfoot><tr>
     <td><b>TOTAL</b></td>
     <td><b>${rows.length.toLocaleString("pt-BR")}</b></td>
-    <td><b>${pct1(rows.reduce((a,r)=>a+r.ExecPct,0)/(rows.length||1))}%</b></td>
+    <td><b>${pct1(avgValid(rows.map(x=>x.ExecPct)))}%</b></td>
     <td><b>${BRL(totalValor)}</b></td>
     <td><b>100,0%</b></td>
   </tr></tfoot></table>`;
   return html;
+}
+function avgValid(arr){
+  const v=arr.filter(x=>isFinite(x));
+  return v.length? v.reduce((a,b)=>a+b,0)/v.length : 0;
 }
 function buildTablesForPDF(){
   const f = actRows();
   const keys = ["Executor","Estagio","Classificacao","Eixo","Subeixo","Modalidade"];
   const tables = keys.map(k=>buildOneTable(f,k)).join("");
   const fonte = `<div class="source">Fonte: Novo PAC (2023-2030) – Casa Civil, Governo Federal (atualização: Ago/2025)</div>`;
-  document.getElementById("tables").innerHTML = tables + fonte;
+  const node = document.getElementById("tables");
+  node.innerHTML = tables + fonte;
 }
 function makePDF(){
+  const node = document.getElementById("tables");
+  node.classList.add("show");
   const opt = {
-    margin:       [10,10,10,10],
-    filename:     'relatorio_pac_tabelas.pdf',
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true, background: '#ffffff' },
-    jsPDF:        { unit: 'pt', format: 'a4', orientation: 'landscape' }
+    margin: [10,10,10,10],
+    filename: 'relatorio_pac_tabelas.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, background: '#ffffff' },
+    jsPDF: { unit: 'pt', format: 'a4', orientation: 'landscape' }
   };
-  const node = document.getElementById('tables');
-  // Gera apenas as tabelas (estão ocultas na tela)
-  html2pdf().set(opt).from(node).save();
+  html2pdf().set(opt).from(node).save().then(()=>{
+    node.classList.remove("show");
+  });
 }
 </script>
 </body>
